@@ -3,92 +3,390 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Home Network Stream Status</title>
+  <title>Stream Status</title>
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-  <div class="app-shell">
-    <header class="hero">
-      <div>
-        <p class="eyebrow">Live Stream Status</p>
-        <h1>Home Network Lab</h1>
-        <p class="subtitle">Track stream segments, progress, and your task list as you build the VLAN migration and infrastructure lab.</p>
-      </div>
-      <div class="hero-card">
-        <div class="hero-card-row">
-          <span>Current Focus</span>
-          <strong>VLAN migration + auth layer</strong>
-        </div>
-        <div class="hero-card-row">
-          <span>Platform</span>
-          <strong>Proxmox / OPNsense / Pi-hole / Authelia</strong>
-        </div>
-      </div>
-    </header>
 
-    <main>
-      <section class="section-grid">
-        <article class="panel">
-          <h2>Stream segments</h2>
-          <p class="panel-copy">Use these segments on-air to guide the livestream flow.</p>
-          <div class="segments" id="segment-list">
-            <article class="segment-card" data-segment="preflight">
-              <div>
-                <h3>Pre-flight checks</h3>
-                <p>Verify Proxmox IPs, snapshot LXCs, and confirm OPNsense DNS/firewall state.</p>
-              </div>
-              <button class="segment-toggle" data-key="preflight">Mark done</button>
-            </article>
-            <article class="segment-card" data-segment="infrastructure">
-              <div>
-                <h3>Infrastructure setup</h3>
-                <p>Build VLAN bridges, deploy Pi-hole and nginx on Proxmox, and validate traffic lanes.</p>
-              </div>
-              <button class="segment-toggle" data-key="infrastructure">Mark done</button>
-            </article>
-            <article class="segment-card" data-segment="auth">
-              <div>
-                <h3>Auth layer rollout</h3>
-                <p>Deploy lldap and Authelia, explain why auth belongs on the infra VLAN.</p>
-              </div>
-              <button class="segment-toggle" data-key="auth">Mark done</button>
-            </article>
-            <article class="segment-card" data-segment="dmz">
-              <div>
-                <h3>DMZ & cleanup</h3>
-                <p>Prepare external nginx, replace ngrok, and remove old host-based services.</p>
-              </div>
-              <button class="segment-toggle" data-key="dmz">Mark done</button>
-            </article>
-          </div>
-        </article>
-
-        <article class="panel panel-tasks">
-          <div class="panel-header">
-            <div>
-              <h2>Task list</h2>
-              <p>Manage livestream tasks and keep your build checklist visible.</p>
-            </div>
-            <div class="task-controls">
-              <button id="filter-all" class="filter active">All</button>
-              <button id="filter-active" class="filter">Open</button>
-              <button id="filter-completed" class="filter">Done</button>
-            </div>
-          </div>
-          <div class="add-task">
-            <input id="new-task" type="text" placeholder="Add stream task" />
-            <button id="add-task-button">Add</button>
-          </div>
-          <div id="task-list" class="task-list"></div>
-          <div class="task-footer">
-            <span id="task-count">0 tasks</span>
-            <button id="clear-completed">Clear completed</button>
-          </div>
-        </article>
-      </section>
-    </main>
+  <!-- Project manager modal -->
+  <div id="project-modal" class="modal hidden">
+    <div class="modal-backdrop"></div>
+    <div class="modal-box">
+      <div class="modal-header">
+        <h2>Projects</h2>
+        <button class="close-modal icon-btn" data-modal="project-modal">&#x2715;</button>
+      </div>
+      <div id="project-list-modal" class="project-list-modal"></div>
+      <div class="modal-divider"></div>
+      <p class="modal-section-label">New project</p>
+      <form id="new-project-form" class="project-form">
+        <input name="name" type="text" placeholder="Project name *" required />
+        <input name="description" type="text" placeholder="Description" />
+        <input name="focus" type="text" placeholder="Current focus" />
+        <input name="platform" type="text" placeholder="Platform / stack" />
+        <button type="submit" class="btn-primary">Create</button>
+      </form>
+    </div>
   </div>
 
+  <!-- Edit project modal -->
+  <div id="edit-modal" class="modal hidden">
+    <div class="modal-backdrop"></div>
+    <div class="modal-box">
+      <div class="modal-header">
+        <h2>Edit Project</h2>
+        <button class="close-modal icon-btn" data-modal="edit-modal">&#x2715;</button>
+      </div>
+      <form id="edit-project-form" class="project-form">
+        <input name="name" type="text" placeholder="Project name *" required />
+        <input name="description" type="text" placeholder="Description" />
+        <input name="focus" type="text" placeholder="Current focus" />
+        <input name="platform" type="text" placeholder="Platform / stack" />
+        <div class="form-divider"></div>
+        <p class="form-section-label">Social &amp; links</p>
+        <input name="social_twitch"  type="text" placeholder="Twitch handle" />
+        <input name="social_youtube" type="text" placeholder="YouTube channel" />
+        <input name="social_github"  type="text" placeholder="GitHub username" />
+        <input name="social_discord" type="text" placeholder="Discord server" />
+        <input name="social_twitter" type="text" placeholder="X / Twitter handle" />
+        <input name="social_website" type="text" placeholder="Website URL" />
+        <button type="submit" class="btn-primary">Save</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Add / edit segment modal -->
+  <div id="segment-modal" class="modal hidden">
+    <div class="modal-backdrop"></div>
+    <div class="modal-box modal-box--md">
+      <div class="modal-header">
+        <h2 id="segment-modal-title">Add Segment</h2>
+        <button class="close-modal icon-btn" data-modal="segment-modal">&#x2715;</button>
+      </div>
+
+      <!-- Wizard progress (add mode only) -->
+      <div id="wizard-progress" class="wizard-progress hidden">
+        <div class="wizard-dot active" data-step="1"><span class="wizard-dot-num">1</span><em class="wizard-dot-label">Details</em></div>
+        <div class="wizard-line"></div>
+        <div class="wizard-dot" data-step="2"><span class="wizard-dot-num">2</span><em class="wizard-dot-label">Tips</em></div>
+        <div class="wizard-line"></div>
+        <div class="wizard-dot" data-step="3"><span class="wizard-dot-num">3</span><em class="wizard-dot-label">Tasks</em></div>
+      </div>
+
+      <form id="segment-form" class="project-form">
+        <!-- Panel 1: Details -->
+        <div id="seg-panel-1" class="seg-panel">
+          <input name="title" type="text" placeholder="Segment title *" required />
+          <textarea name="description" placeholder="Description (optional)" rows="3"></textarea>
+          <input name="duration" type="number" min="1" max="480" placeholder="Planned duration (minutes, optional)" />
+          <div id="obs-scene-wrap">
+            <input name="obsScene" type="text" placeholder="OBS scene name (optional — auto-switches on mark done)" />
+          </div>
+        </div>
+
+        <!-- Panel 2: Tips -->
+        <div id="seg-panel-2" class="seg-panel hidden">
+          <div class="form-section-row">
+            <p class="form-section-label">Lower-third tips</p>
+            <button type="button" class="btn-ghost btn-sm hidden" id="generate-tips-btn">✦ Generate</button>
+          </div>
+          <p class="wizard-hint">One tip or fact per line — rotates in the Lower Thirds overlay during this segment.</p>
+          <textarea name="tips" placeholder="One tip / fact per line…" rows="6"></textarea>
+        </div>
+
+        <!-- Panel 3: Tasks -->
+        <div id="seg-panel-3" class="seg-panel hidden">
+          <div class="form-section-row">
+            <p class="form-section-label">Tasks for this segment</p>
+            <button type="button" class="btn-ghost btn-sm hidden" id="suggest-tasks-btn">✦ Suggest</button>
+          </div>
+          <p class="wizard-hint">Selected tasks will be added to your task list. Skip to manage tasks manually.</p>
+          <div id="task-suggestions" class="task-suggestions hidden">
+            <div id="task-suggestion-list"></div>
+            <button type="button" class="btn-primary btn-sm" id="add-suggested-tasks-btn">Add selected</button>
+          </div>
+        </div>
+
+        <!-- Wizard navigation (add mode) -->
+        <div id="wizard-nav" class="wizard-nav hidden">
+          <button type="button" class="btn-ghost btn-sm hidden" id="wizard-skip-btn">Skip</button>
+          <div class="wizard-nav-right">
+            <button type="button" class="btn-ghost hidden" id="wizard-back-btn">&#8592; Back</button>
+            <button type="button" class="btn-primary" id="wizard-next-btn">Next &#8594;</button>
+          </div>
+        </div>
+
+        <!-- Flat submit (edit mode) -->
+        <button type="submit" class="btn-primary hidden" id="segment-submit-btn">Save changes</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Set countdown modal -->
+  <div id="countdown-modal" class="modal hidden">
+    <div class="modal-backdrop"></div>
+    <div class="modal-box modal-box--sm">
+      <div class="modal-header">
+        <h2>Set Countdown</h2>
+        <button class="close-modal icon-btn" data-modal="countdown-modal">&#x2715;</button>
+      </div>
+      <form id="countdown-form" class="project-form">
+        <input name="countdownLabel" type="text" placeholder="Label (e.g. Back in, Next stream in)" maxlength="40" />
+        <label class="form-field-label">Count down to</label>
+        <input name="countdownTo" type="datetime-local" required />
+        <button type="submit" class="btn-primary">Set countdown</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Auto-save toast -->
+  <div id="save-toast" class="save-toast">&#x2713; Saved</div>
+
+  <!-- Sticky now-live bar -->
+  <div id="sticky-bar" class="sticky-bar">
+    <div class="sticky-left">
+      <span class="sticky-eyebrow">Now</span>
+      <span id="sticky-segment" class="sticky-segment">–</span>
+    </div>
+    <span id="sticky-timer" class="sticky-timer">–</span>
+    <span id="sticky-tasks" class="sticky-tasks">–</span>
+  </div>
+
+  <div class="app-shell">
+    <div id="loading-state" class="loading-state">
+      <p>Loading&#8230;</p>
+    </div>
+
+    <div id="empty-state" class="empty-state hidden">
+      <p class="eyebrow">Stream Status</p>
+      <h1>No projects yet</h1>
+      <p>Create a project to track stream segments and tasks for any topic or stream.</p>
+      <button id="create-first-project" class="btn-primary">Create first project</button>
+    </div>
+
+    <div id="main-app" class="hidden">
+      <header class="hero">
+        <!-- Title row: full width, actions pinned right -->
+        <div class="hero-title-row">
+          <div>
+            <p class="eyebrow">Live Stream Status</p>
+            <h1 id="project-title">&#8211;</h1>
+            <p class="subtitle" id="project-description"></p>
+          </div>
+          <div class="hero-actions">
+            <div class="obs-status-wrap">
+              <button id="obs-settings-btn" class="obs-status-badge" data-status="disconnected" title="OBS WebSocket settings">
+                <span class="obs-status-dot"></span>
+                <span class="obs-status-label">OBS</span>
+              </button>
+            </div>
+            <div class="theme-picker" id="theme-picker">
+              <button class="theme-dot active" data-theme="teal"   title="Teal"></button>
+              <button class="theme-dot"        data-theme="purple" title="Purple"></button>
+              <button class="theme-dot"        data-theme="orange" title="Orange"></button>
+              <button class="theme-dot"        data-theme="blue"   title="Blue"></button>
+              <button class="theme-dot"        data-theme="red"    title="Red"></button>
+            </div>
+            <button id="switch-project-btn" class="btn-secondary">Switch project</button>
+            <button id="edit-project-btn" class="btn-ghost">Edit</button>
+          </div>
+        </div>
+        <!-- Cards row: focus | timer | countdown -->
+        <div class="hero-cards-row">
+          <div class="hero-card">
+            <div class="hero-card-row">
+              <span>Current Focus</span>
+              <strong id="project-focus">&#8211;</strong>
+            </div>
+            <div class="hero-card-row">
+              <span>Platform</span>
+              <strong id="project-platform">&#8211;</strong>
+            </div>
+          </div>
+          <div class="hero-card hero-timer-card">
+            <div id="timer-display" class="timer-display">&#8211;&#8211;:&#8211;&#8211;:&#8211;&#8211;</div>
+            <div class="timer-btns">
+              <button id="go-live-btn" class="go-live-btn">&#9654; Go Live</button>
+              <button id="writeup-btn" class="btn-ghost btn-sm hidden">✦ Write-up</button>
+              <button id="chapters-btn" class="btn-ghost btn-sm hidden">⊞ Chapters</button>
+            </div>
+          </div>
+          <div class="hero-card hero-countdown-card">
+            <div class="countdown-info">
+              <span id="countdown-label-display" class="countdown-label">Countdown</span>
+              <span id="countdown-display" class="countdown-time">&#8211;</span>
+            </div>
+            <div class="countdown-btns">
+              <button id="set-countdown-btn" class="btn-ghost btn-sm">Set</button>
+              <button id="clear-countdown-btn" class="icon-btn hidden" title="Clear countdown">&#x2715;</button>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <nav class="jump-nav" id="jump-nav">
+        <a class="jump-link" href="#section-segments">Segments</a>
+        <a class="jump-link" href="#section-tasks">Tasks</a>
+        <a class="jump-link" href="#section-notes">Notes</a>
+        <a class="jump-link" href="#section-overlays">Overlays</a>
+      </nav>
+
+      <main>
+        <section class="section-grid" id="section-grid">
+          <article class="panel" id="section-segments">
+            <div class="panel-header-row">
+              <div>
+                <h2>Stream segments</h2>
+                <p class="panel-copy">Mark segments done as you move through the stream.</p>
+              </div>
+              <button id="add-segment-btn" class="btn-ghost">+ Segment</button>
+            </div>
+            <div class="segments" id="segment-list"></div>
+          </article>
+
+          <article class="panel panel-tasks" id="section-tasks">
+            <div class="panel-header">
+              <div>
+                <h2>Task list</h2>
+                <p class="panel-copy">Track stream tasks and your build checklist.</p>
+              </div>
+              <div class="task-controls">
+                <button id="filter-all" class="filter active">All</button>
+                <button id="filter-active" class="filter">Open</button>
+                <button id="filter-completed" class="filter">Done</button>
+              </div>
+            </div>
+            <div class="add-task">
+              <input id="new-task" type="text" placeholder="Add stream task" />
+              <button id="add-task-button">Add</button>
+            </div>
+            <div id="task-list" class="task-list"></div>
+            <div class="task-footer">
+              <span id="task-count">0 tasks</span>
+              <button id="clear-completed">Clear completed</button>
+            </div>
+          </article>
+        </section>
+
+        <!-- Notes panel -->
+        <section class="panel panel-notes" id="section-notes">
+          <div class="notes-header">
+            <h2>Stream notes</h2>
+            <span id="notes-indicator" class="notes-indicator"></span>
+          </div>
+          <textarea
+            id="notes-textarea"
+            class="notes-textarea"
+            placeholder="Stream notes, reference IPs, commands, talking points&#8230;"
+          ></textarea>
+        </section>
+
+        <!-- Overlay sources section -->
+        <section class="overlay-section" id="section-overlays">
+          <div class="overlay-section-header">
+            <div>
+              <h2>OBS overlay sources</h2>
+              <p class="panel-copy">Add these as Browser Sources in OBS. Check <strong>Allow transparency</strong> in each source, or append <code>&amp;bg=green</code> / <code>&amp;bg=magenta</code> for chroma key.</p>
+            </div>
+            <div class="overlay-header-btns">
+            <button id="overlay-mode-btn" class="btn-ghost btn-sm" title="Switch to URLs pinned to this project">Pinned</button>
+            <button id="toggle-overlays" class="btn-ghost overlay-toggle-btn" aria-expanded="false">Show</button>
+          </div>
+          </div>
+          <div id="overlay-grid" class="overlay-grid hidden"></div>
+        </section>
+      </main>
+    </div>
+  </div>
+
+  <!-- Segment plan preview modal -->
+  <div id="segment-plan-modal" class="modal hidden">
+    <div class="modal-backdrop" data-modal="segment-plan-modal"></div>
+    <div class="modal-box">
+      <div class="modal-header">
+        <h2>Proposed segments</h2>
+        <button class="close-modal icon-btn" data-modal="segment-plan-modal">&#x2715;</button>
+      </div>
+      <p class="modal-hint">Uncheck any segments you don't want, then click Add.</p>
+      <div id="segment-plan-list"></div>
+      <div class="modal-actions">
+        <button id="add-plan-segments-btn" class="btn-ghost">Add selected</button>
+        <button id="add-enrich-segments-btn" class="btn-primary hidden">&#10022; Add &amp; Set Up Tips</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Segment enrichment modal -->
+  <div id="enrich-modal" class="modal hidden">
+    <div class="modal-backdrop" data-modal="enrich-modal"></div>
+    <div class="modal-box modal-box--md">
+      <div class="modal-header">
+        <h2>Set up lower thirds</h2>
+        <button class="close-modal icon-btn" data-modal="enrich-modal">&#x2715;</button>
+      </div>
+      <p class="modal-hint">Generating rotating tips for each segment so your Lower Thirds overlay is ready to go.</p>
+      <div id="enrich-list" class="enrich-list"></div>
+      <div class="modal-actions">
+        <button id="enrich-done-btn" class="btn-primary">Done</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Stream write-up modal -->
+  <div id="writeup-modal" class="modal hidden">
+    <div class="modal-backdrop" data-modal="writeup-modal"></div>
+    <div class="modal-box">
+      <div class="modal-header">
+        <h2>Stream write-up</h2>
+        <button class="close-modal icon-btn" data-modal="writeup-modal">&#x2715;</button>
+      </div>
+      <textarea id="writeup-output" class="writeup-output" readonly rows="12"></textarea>
+      <div class="modal-actions">
+        <button id="copy-writeup-btn" class="btn-primary">Copy to clipboard</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- OBS settings modal -->
+  <div id="obs-modal" class="modal hidden">
+    <div class="modal-backdrop"></div>
+    <div class="modal-box modal-box--sm">
+      <div class="modal-header">
+        <h2>OBS Connection</h2>
+        <button class="close-modal icon-btn" data-modal="obs-modal">&#x2715;</button>
+      </div>
+      <form id="obs-settings-form" class="project-form">
+        <p class="form-section-label">WebSocket</p>
+        <p class="wizard-hint">Connects via <code>wss://status.home.lan/obs-ws</code> through the nginx proxy.</p>
+        <input name="password" type="password" placeholder="OBS WebSocket password (leave blank if none)" autocomplete="off" />
+        <div class="form-divider"></div>
+        <p class="form-section-label">Streaming PC</p>
+        <input name="streamingPcIp" type="text" placeholder="Streaming PC LAN IP (e.g. 10.0.10.50)" />
+        <p class="wizard-hint">Update the nginx <code>proxy_pass</code> to this IP — see setup instructions.</p>
+        <div class="form-divider"></div>
+        <p class="form-section-label">Scene sync</p>
+        <input name="brbScene" type="text" placeholder="BRB scene name (e.g. BRB Screen)" />
+        <p class="wizard-hint">Timer pauses automatically when OBS switches to this scene.</p>
+        <input name="ignoredScenes" type="text" placeholder="Ignored scenes — comma-separated (e.g. Starting Soon, End Screen)" />
+        <p class="wizard-hint">Scene switches to these names won't move the active segment indicator.</p>
+        <div class="form-divider"></div>
+        <p class="form-section-label">Lower thirds text source</p>
+        <input name="textSource" type="text" placeholder="OBS text source name (e.g. Segment Title)" />
+        <p class="wizard-hint">When a segment becomes active the app pushes its title to this OBS text source instantly. Leave blank to disable.</p>
+        <div class="form-divider"></div>
+        <div class="obs-connect-row">
+          <label class="obs-enable-label">
+            <input type="checkbox" id="obs-enable-toggle" />
+            Enable OBS connection
+          </label>
+          <button type="submit" class="btn-primary">Save</button>
+        </div>
+      </form>
+      <div id="obs-connection-detail" class="obs-connection-detail"></div>
+    </div>
+  </div>
+
+  <script src="obs-websocket.js"></script>
   <script src="script.js"></script>
 </body>
 </html>
