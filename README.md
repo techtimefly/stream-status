@@ -2,7 +2,7 @@
 
 A self-hosted homelab app for managing live-stream segments, tasks, and notes, with OBS browser-source overlays and a full OBS WebSocket integration.
 
-Runs on any Linux server with Python 3.11+, nginx, and systemd.
+Runs on any Linux server with Python 3.11+. Three ways to run it — pick whichever fits your setup.
 
 ---
 
@@ -14,78 +14,152 @@ Runs on any Linux server with Python 3.11+, nginx, and systemd.
 | Frontend | Vanilla JS · no build step · no npm |
 | Persistence | JSON files at `/var/lib/stream-status/projects/` |
 | Reverse proxy | nginx — serves static files, proxies `/api/` to Flask, WebSocket proxy to OBS |
-| Process manager | systemd (`stream-status-api.service`) |
+| Process manager | systemd · Docker · or run directly |
 
 ---
 
-## Self-hosted setup
-
-### 1 — Install dependencies
+## Getting started
 
 ```bash
-apt install python3.11 python3.11-venv nginx
+git clone https://github.com/techtimefly/stream-status.git
+cd stream-status
 ```
 
-### 2 — Create directories and install the app
+---
+
+## Option A — Run directly (simplest)
+
+Requires Python 3.11+ on the host. Handles venv creation and dependency install automatically on first run.
 
 ```bash
-# App code
-mkdir -p /opt/stream-status
-cp app.py /opt/stream-status/
+chmod +x run.sh
+./run.sh
+```
+
+The app starts on `http://localhost:5000`. Data is written to `/var/lib/stream-status/projects/` by default — override with `DATA_DIR`:
+
+```bash
+DATA_DIR=~/stream-data ./run.sh
+```
+
+To keep it running in the background:
+
+```bash
+# Using tmux (recommended)
+tmux new-session -d -s stream-status './run.sh'
+
+# Or nohup
+nohup ./run.sh > stream-status.log 2>&1 &
+```
+
+---
+
+## Option B — Docker Compose (easiest, no Python required)
+
+Requires Docker with the Compose plugin.
+
+```bash
+docker compose up -d
+```
+
+The app runs on `http://localhost:5000`. Project data is persisted in a named Docker volume (`stream-data`). To stop:
+
+```bash
+docker compose down
+```
+
+---
+
+## Option C — systemd service (persistent, runs on boot)
+
+Best for a dedicated server or homelab VM/LXC where you want the app to survive reboots.
+
+**1 — Install Python and nginx** (Debian/Ubuntu):
+
+```bash
+# Python 3.11 is in the default repos on Ubuntu 24.04+
+# On Ubuntu 22.04, add the deadsnakes PPA first:
+# sudo add-apt-repository ppa:deadsnakes/ppa
+sudo apt install python3.11 python3.11-venv nginx
+```
+
+**2 — Copy files into place** (run as root):
+
+```bash
+# Backend
+sudo mkdir -p /opt/stream-status
+sudo cp app.py /opt/stream-status/
 
 # Static files
-mkdir -p /var/www/stream-status
-cp index.html style.css script.js obs-websocket.js \
-   overlay.html overlay.css overlay.js \
-   /var/www/stream-status/
+sudo mkdir -p /var/www/stream-status
+sudo cp index.html style.css script.js obs-websocket.js \
+        overlay.html overlay.css overlay.js /var/www/stream-status/
 
-# Data directory (writable by the service user)
-mkdir -p /var/lib/stream-status/projects
-chown -R www-data:www-data /var/lib/stream-status
+# Data directory
+sudo mkdir -p /var/lib/stream-status/projects
+sudo chown -R <SERVICE_USER>:<SERVICE_USER> /var/lib/stream-status
 ```
 
-### 3 — Set up the Python virtualenv
+**3 — Set up the virtualenv** (run as root):
 
 ```bash
-python3.11 -m venv /opt/stream-status/venv
-/opt/stream-status/venv/bin/pip install flask gunicorn
-chown -R www-data:www-data /opt/stream-status
+sudo python3.11 -m venv /opt/stream-status/venv
+sudo /opt/stream-status/venv/bin/pip install flask gunicorn
+sudo chown -R <SERVICE_USER>:<SERVICE_USER> /opt/stream-status
 ```
 
-### 4 — Install the systemd service
+Edit `deploy/stream-status-api.service` and set `User=` to your service user, then:
 
 ```bash
-cp deploy/stream-status-api.service /etc/systemd/system/
-systemctl daemon-reload
-systemctl enable --now stream-status-api
+sudo cp deploy/stream-status-api.service /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable --now stream-status-api
 ```
 
-### 5 — Configure nginx
+**4 — Configure nginx**
 
-Edit `deploy/nginx-stream-status.conf` and replace `YOUR_DOMAIN_OR_IP` and `STREAMING_PC_IP`, then:
+Edit `deploy/nginx-stream-status.conf` — replace `YOUR_DOMAIN_OR_IP` and (if using OBS WebSocket proxy) `STREAMING_PC_IP`, then:
 
 ```bash
-cp deploy/nginx-stream-status.conf /etc/nginx/sites-available/stream-status
-ln -s /etc/nginx/sites-available/stream-status /etc/nginx/sites-enabled/
-nginx -t && systemctl reload nginx
+sudo cp deploy/nginx-stream-status.conf /etc/nginx/sites-available/stream-status
+sudo ln -s /etc/nginx/sites-available/stream-status /etc/nginx/sites-enabled/
+sudo nginx -t && sudo systemctl reload nginx
 ```
 
-### 6 — (Optional) Configure AI provider
+The OBS WebSocket proxy block (`/obs-ws`) is optional — remove it from the nginx config if you're not using OBS integration.
 
-Copy `.env.example` to `/opt/stream-status/.env` and fill in your key(s). The service starts fine without it — AI features are just disabled.
+---
+
+## (Optional) Configure AI provider
+
+Copy `.env.example` to `.env` (or `/opt/stream-status/.env` for systemd) and fill in your key(s). The app runs fine without it — AI features are simply disabled.
 
 ```bash
-cp .env.example /opt/stream-status/.env
-# edit /opt/stream-status/.env, then:
-chmod 600 /opt/stream-status/.env
-systemctl restart stream-status-api
+cp .env.example .env
+# edit .env, then restart the app
 ```
 
-### 7 — Verify
+---
+
+## Verify
 
 ```bash
-curl http://localhost/api/capabilities
-# → {"aiTips": false, "provider": null}   (or true if AI is configured)
+curl http://localhost:5000/api/capabilities   # Options A & B
+curl http://localhost/api/capabilities        # Option C (nginx on port 80)
+# → {"aiTips": false, "provider": null}
+```
+
+---
+
+## Make targets
+
+For convenience, common tasks are available via `make`:
+
+```bash
+make install   # create venv and install dependencies
+make run       # start gunicorn in the foreground (same as ./run.sh)
+make service   # install and enable the systemd unit (requires root)
+make logs      # follow systemd service logs
 ```
 
 ---

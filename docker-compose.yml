@@ -1,0 +1,14 @@
+services:
+  stream-status:
+    build: .
+    ports:
+      - "5000:5000"
+    volumes:
+      - stream-data:/data
+    env_file:
+      - path: .env
+        required: false
+    restart: unless-stopped
+
+volumes:
+  stream-data:
