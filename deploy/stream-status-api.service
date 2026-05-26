@@ -1,0 +1,17 @@
+[Unit]
+Description=Stream Status API (Gunicorn)
+After=network.target
+
+[Service]
+User=www-data
+WorkingDirectory=/opt/stream-status
+EnvironmentFile=-/opt/stream-status/.env
+ExecStart=/opt/stream-status/venv/bin/gunicorn \
+    --workers 2 \
+    --bind 127.0.0.1:5000 \
+    app:app
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

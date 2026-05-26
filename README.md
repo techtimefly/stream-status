@@ -2,7 +2,7 @@
 
 A self-hosted homelab app for managing live-stream segments, tasks, and notes, with OBS browser-source overlays and a full OBS WebSocket integration.
 
-Runs on **LXC 108** (`10.0.10.25`) inside Proxmox.
+Runs on any Linux server with Python 3.11+, nginx, and systemd.
 
 ---
 
@@ -11,10 +11,71 @@ Runs on **LXC 108** (`10.0.10.25`) inside Proxmox.
 | Layer | Detail |
 |---|---|
 | Backend | Python 3.11 · Flask · Gunicorn (2 workers) |
-| Frontend | Vanilla JS · no build step |
+| Frontend | Vanilla JS · no build step · no npm |
 | Persistence | JSON files at `/var/lib/stream-status/projects/` |
 | Reverse proxy | nginx — serves static files, proxies `/api/` to Flask, WebSocket proxy to OBS |
 | Process manager | systemd (`stream-status-api.service`) |
+
+---
+
+## Self-hosted setup
+
+### 1 — Install dependencies
+
+```bash
+apt install python3.11 python3.11-venv nginx
+```
+
+### 2 — Create directories and install the app
+
+```bash
+# App code
+mkdir -p /opt/stream-status
+cp app.py /opt/stream-status/
+
+# Static files
+mkdir -p /var/www/stream-status
+cp index.html style.css script.js obs-websocket.js \
+   overlay.html overlay.css overlay.js \
+   /var/www/stream-status/
+
+# Data directory (writable by the service user)
+mkdir -p /var/lib/stream-status/projects
+chown -R www-data:www-data /var/lib/stream-status
+```
+
+### 3 — Set up the Python virtualenv
+
+```bash
+python3.11 -m venv /opt/stream-status/venv
+/opt/stream-status/venv/bin/pip install flask gunicorn
+chown -R www-data:www-data /opt/stream-status
+```
+
+### 4 — Install the systemd service
+
+```bash
+cp deploy/stream-status-api.service /etc/systemd/system/
+systemctl daemon-reload
+systemctl enable --now stream-status-api
+```
+
+### 5 — Configure nginx
+
+Edit `deploy/nginx-stream-status.conf` and replace `YOUR_DOMAIN_OR_IP` and `STREAMING_PC_IP`, then:
+
+```bash
+cp deploy/nginx-stream-status.conf /etc/nginx/sites-available/stream-status
+ln -s /etc/nginx/sites-available/stream-status /etc/nginx/sites-enabled/
+nginx -t && systemctl reload nginx
+```
+
+### 6 — Verify
+
+```bash
+curl http://localhost/api/capabilities
+# → {"aiTips": false, "provider": null}   (or true if AI is configured)
+```
 
 ---
 
@@ -23,6 +84,8 @@ Runs on **LXC 108** (`10.0.10.25`) inside Proxmox.
 ```
 /opt/stream-status/
   app.py                    Flask API
+  venv/                     Python virtualenv
+  .env                      Optional: AI provider config (see AI features)
 
 /var/www/stream-status/
   index.html                Main app shell
@@ -62,29 +125,22 @@ journalctl -u stream-status-api -f
 nginx is managed separately:
 
 ```bash
-nginx -t              # test config before restarting
+nginx -t              # test config before reloading
 systemctl reload nginx
 ```
 
 ---
 
-## Deploying changes (from Proxmox host)
+## Updating
 
-Files are pushed from the Proxmox host (`192.168.1.201`) into the LXC using `pct push`:
-
-```bash
-sudo /usr/sbin/pct push 108 /tmp/script.js /var/www/stream-status/script.js --perms 644
-sudo /usr/sbin/pct push 108 /tmp/app.py    /opt/stream-status/app.py        --perms 644
-```
-
-Static file changes (HTML/CSS/JS) take effect immediately — no service restart needed.  
-Backend changes (`app.py`) require `systemctl restart stream-status-api` inside the LXC.
+Static files (HTML/CSS/JS) — copy to `/var/www/stream-status/`, no restart needed.  
+Backend (`app.py`) — copy to `/opt/stream-status/`, then `systemctl restart stream-status-api`.
 
 ---
 
 ## REST API
 
-Base URL: `http://10.0.10.25/api`
+Base URL: `http://<SERVER_IP>/api`
 
 | Method | Path | Description |
 |---|---|---|
@@ -270,17 +326,17 @@ The app connects to OBS via WebSocket v5 (built into OBS 28+) through an nginx p
 
 ### How the connection works
 
-OBS WebSocket runs on the **streaming PC** at port `4455`. Browser pages served over HTTPS cannot connect directly to a local `ws://` endpoint (mixed content). The solution is an nginx WebSocket proxy on LXC 107:
+OBS WebSocket runs on the **streaming PC** at port `4455`. Browser pages served over HTTPS cannot connect directly to a local `ws://` endpoint (mixed content). The solution is an nginx WebSocket proxy:
 
 ```
-Browser (HTTPS) → wss://status.home.lan/obs-ws → nginx LXC 107 → ws://192.168.1.178:4455 → OBS
+Browser (HTTPS) → wss://<YOUR_DOMAIN>/obs-ws → nginx proxy → ws://<STREAMING_PC_IP>:4455 → OBS
 ```
 
-The nginx block on LXC 107 (`/etc/nginx/sites-enabled/status.home.lan`):
+The nginx block (e.g. `/etc/nginx/sites-enabled/<YOUR_DOMAIN>`):
 
 ```nginx
 location /obs-ws {
-    proxy_pass http://192.168.1.178:4455;
+    proxy_pass http://<STREAMING_PC_IP>:4455;
     proxy_http_version 1.1;
     proxy_set_header Upgrade $http_upgrade;
     proxy_set_header Connection "upgrade";
@@ -290,7 +346,7 @@ location /obs-ws {
 }
 ```
 
-Update `192.168.1.178` if the streaming PC's IP changes, then `systemctl reload nginx` on LXC 107.
+Update `<STREAMING_PC_IP>` if the streaming PC's IP changes, then `systemctl reload nginx`.
 
 ### OBS setup
 
@@ -394,8 +450,8 @@ Toggle between the two modes with the **Universal / Pinned** button at the top o
 
 | Mode | URL format | Behaviour |
 |---|---|---|
-| **Universal** (default) | `http://10.0.10.25/overlay.html?view=<view>` | Follows whichever project is currently active. Switching projects in the app updates all universal widgets automatically. |
-| **Pinned** | `http://10.0.10.25/overlay.html?project=<uuid>&view=<view>` | Locked to a specific project UUID. Useful when running multiple projects simultaneously. |
+| **Universal** (default) | `http://<SERVER_IP>/overlay.html?view=<view>` | Follows whichever project is currently active. Switching projects in the app updates all universal widgets automatically. |
+| **Pinned** | `http://<SERVER_IP>/overlay.html?project=<uuid>&view=<view>` | Locked to a specific project UUID. Useful when running multiple projects simultaneously. |
 
 ### Inline widget controls
 
@@ -531,16 +587,16 @@ Environment="OLLAMA_HOST=0.0.0.0:11434"
 systemctl daemon-reload && systemctl restart ollama
 ```
 
-**Configure LXC 108:**
+**Configure the LXC** (replace `<LXC_ID>` with your container ID):
 
 ```bash
-printf 'OLLAMA_BASE_URL=http://<ollama-host-ip>:11434\nOLLAMA_MODEL=gemma4\n' | \
-  sudo /usr/sbin/pct exec 108 -- tee /opt/stream-status/.env
-sudo /usr/sbin/pct exec 108 -- chmod 600 /opt/stream-status/.env
-sudo /usr/sbin/pct exec 108 -- systemctl restart stream-status-api
+printf 'OLLAMA_BASE_URL=http://<OLLAMA_HOST_IP>:11434\nOLLAMA_MODEL=gemma4\n' | \
+  sudo /usr/sbin/pct exec <LXC_ID> -- tee /opt/stream-status/.env
+sudo /usr/sbin/pct exec <LXC_ID> -- chmod 600 /opt/stream-status/.env
+sudo /usr/sbin/pct exec <LXC_ID> -- systemctl restart stream-status-api
 ```
 
-**Verify:** `curl http://10.0.10.25/api/capabilities` → `{"aiTips": true, "provider": "ollama"}`
+**Verify:** `curl http://<SERVER_IP>/api/capabilities` → `{"aiTips": true, "provider": "ollama"}`
 
 ---
 
@@ -548,12 +604,12 @@ sudo /usr/sbin/pct exec 108 -- systemctl restart stream-status-api
 
 ```bash
 echo 'ANTHROPIC_API_KEY=sk-ant-your-key-here' | \
-  sudo /usr/sbin/pct exec 108 -- tee /opt/stream-status/.env
-sudo /usr/sbin/pct exec 108 -- chmod 600 /opt/stream-status/.env
-sudo /usr/sbin/pct exec 108 -- systemctl restart stream-status-api
+  sudo /usr/sbin/pct exec <LXC_ID> -- tee /opt/stream-status/.env
+sudo /usr/sbin/pct exec <LXC_ID> -- chmod 600 /opt/stream-status/.env
+sudo /usr/sbin/pct exec <LXC_ID> -- systemctl restart stream-status-api
 ```
 
-**Verify:** `curl http://10.0.10.25/api/capabilities` → `{"aiTips": true, "provider": "anthropic"}`
+**Verify:** `curl http://<SERVER_IP>/api/capabilities` → `{"aiTips": true, "provider": "anthropic"}`
 
 ---
 
@@ -563,7 +619,7 @@ Both keys can coexist in `.env`. Anthropic takes priority when `ANTHROPIC_API_KE
 
 ```bash
 ANTHROPIC_API_KEY=sk-ant-your-key-here
-OLLAMA_BASE_URL=http://192.168.1.10:11434
+OLLAMA_BASE_URL=http://<OLLAMA_HOST_IP>:11434
 OLLAMA_MODEL=gemma4
 ```
 
