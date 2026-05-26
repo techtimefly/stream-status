@@ -70,7 +70,18 @@ ln -s /etc/nginx/sites-available/stream-status /etc/nginx/sites-enabled/
 nginx -t && systemctl reload nginx
 ```
 
-### 6 — Verify
+### 6 — (Optional) Configure AI provider
+
+Copy `.env.example` to `/opt/stream-status/.env` and fill in your key(s). The service starts fine without it — AI features are just disabled.
+
+```bash
+cp .env.example /opt/stream-status/.env
+# edit /opt/stream-status/.env, then:
+chmod 600 /opt/stream-status/.env
+systemctl restart stream-status-api
+```
+
+### 7 — Verify
 
 ```bash
 curl http://localhost/api/capabilities
