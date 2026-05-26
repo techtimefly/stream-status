@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Home Network Stream Status</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="app-shell">
+    <header class="hero">
+      <div>
+        <p class="eyebrow">Live Stream Status</p>
+        <h1>Home Network Lab</h1>
+        <p class="subtitle">Track stream segments, progress, and your task list as you build the VLAN migration and infrastructure lab.</p>
+      </div>
+      <div class="hero-card">
+        <div class="hero-card-row">
+          <span>Current Focus</span>
+          <strong>VLAN migration + auth layer</strong>
+        </div>
+        <div class="hero-card-row">
+          <span>Platform</span>
+          <strong>Proxmox / OPNsense / Pi-hole / Authelia</strong>
+        </div>
+      </div>
+    </header>
+
+    <main>
+      <section class="section-grid">
+        <article class="panel">
+          <h2>Stream segments</h2>
+          <p class="panel-copy">Use these segments on-air to guide the livestream flow.</p>
+          <div class="segments" id="segment-list">
+            <article class="segment-card" data-segment="preflight">
+              <div>
+                <h3>Pre-flight checks</h3>
+                <p>Verify Proxmox IPs, snapshot LXCs, and confirm OPNsense DNS/firewall state.</p>
+              </div>
+              <button class="segment-toggle" data-key="preflight">Mark done</button>
+            </article>
+            <article class="segment-card" data-segment="infrastructure">
+              <div>
+                <h3>Infrastructure setup</h3>
+                <p>Build VLAN bridges, deploy Pi-hole and nginx on Proxmox, and validate traffic lanes.</p>
+              </div>
+              <button class="segment-toggle" data-key="infrastructure">Mark done</button>
+            </article>
+            <article class="segment-card" data-segment="auth">
+              <div>
+                <h3>Auth layer rollout</h3>
+                <p>Deploy lldap and Authelia, explain why auth belongs on the infra VLAN.</p>
+              </div>
+              <button class="segment-toggle" data-key="auth">Mark done</button>
+            </article>
+            <article class="segment-card" data-segment="dmz">
+              <div>
+                <h3>DMZ & cleanup</h3>
+                <p>Prepare external nginx, replace ngrok, and remove old host-based services.</p>
+              </div>
+              <button class="segment-toggle" data-key="dmz">Mark done</button>
+            </article>
+          </div>
+        </article>
+
+        <article class="panel panel-tasks">
+          <div class="panel-header">
+            <div>
+              <h2>Task list</h2>
+              <p>Manage livestream tasks and keep your build checklist visible.</p>
+            </div>
+            <div class="task-controls">
+              <button id="filter-all" class="filter active">All</button>
+              <button id="filter-active" class="filter">Open</button>
+              <button id="filter-completed" class="filter">Done</button>
+            </div>
+          </div>
+          <div class="add-task">
+            <input id="new-task" type="text" placeholder="Add stream task" />
+            <button id="add-task-button">Add</button>
+          </div>
+          <div id="task-list" class="task-list"></div>
+          <div class="task-footer">
+            <span id="task-count">0 tasks</span>
+            <button id="clear-completed">Clear completed</button>
+          </div>
+        </article>
+      </section>
+    </main>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>

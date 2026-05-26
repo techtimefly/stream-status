@@ -1,0 +1,246 @@
+/* ── Reset / base ───────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+  width: 100%;
+  height: 100%;
+  font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  line-height: 1.45;
+  color: #e8edf5;
+  background: transparent;
+}
+body.bg-green   { background: #00ff00; }
+body.bg-magenta { background: #ff00ff; }
+body.size-sm    { font-size: 13px; }
+body.size-md    { font-size: 15px; }
+body.size-lg    { font-size: 19px; }
+
+#overlay-root { display: inline-block; padding: 10px; }
+
+/* ── Panel shell ────────────────────────────────────────────────── */
+.panel {
+  background: rgba(9, 11, 16, 0.88);
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  border-radius: 18px;
+  padding: 16px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* ── Shared: header + item list ─────────────────────────────────── */
+.panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+.panel-title {
+  font-size: 0.9em;
+  font-weight: 700;
+  color: #60a5fa;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.panel-meta    { font-size: 0.8em; color: #64748b; flex-shrink: 0; }
+.item-list     { display: flex; flex-direction: column; gap: 7px; }
+.item          { display: flex; align-items: center; gap: 9px; }
+.item-icon     { font-size: 0.85em; width: 16px; text-align: center; flex-shrink: 0; color: #94a3b8; }
+.item-text     { font-size: 0.92em; }
+.item--done .item-icon { color: #10b981; }
+.item--done .item-text { color: #475569; text-decoration: line-through; }
+.item-empty    { font-size: 0.88em; color: #34d399; }
+
+/* Shared progress bar */
+.prog-track {
+  height: 6px;
+  background: rgba(255, 255, 255, 0.10);
+  border-radius: 999px;
+  overflow: hidden;
+}
+.prog-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #10b981, #34d399);
+  border-radius: 999px;
+  transition: width 0.8s ease;
+}
+
+/* ── Segments ───────────────────────────────────────────────────── */
+.view-segments { width: 340px; }
+
+/* ── Tasks ──────────────────────────────────────────────────────── */
+.view-tasks { width: 340px; }
+
+/* ── Current segment ────────────────────────────────────────────── */
+.view-current { width: 480px; }
+.now-label {
+  font-size: 0.72em;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: #60a5fa;
+}
+.now-title { font-size: 1.55em; font-weight: 700; line-height: 1.2; color: #f1f5f9; }
+.now-desc  { font-size: 0.88em; color: #94a3b8; line-height: 1.4; }
+.now-next  { font-size: 0.82em; color: #64748b; padding-top: 4px; border-top: 1px solid rgba(255,255,255,0.07); }
+
+/* ── Progress bar (standalone) ──────────────────────────────────── */
+.view-progress { width: 480px; }
+.prog-header   { display: flex; justify-content: space-between; font-size: 0.85em; color: #94a3b8; }
+
+/* ── Stream timer ───────────────────────────────────────────────── */
+.view-timer { width: 260px; gap: 4px; }
+.timer-label {
+  font-size: 0.7em;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  color: #64748b;
+}
+.view-timer.live .timer-label { color: #ef4444; }
+.timer-clock {
+  font-size: 2.1em;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.04em;
+  color: #475569;
+  line-height: 1;
+}
+.view-timer.live .timer-clock { color: #34d399; }
+
+/* ── Countdown ──────────────────────────────────────────────────── */
+.view-countdown { width: 300px; gap: 4px; }
+.cd-label {
+  font-size: 0.72em;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: #60a5fa;
+}
+.cd-time {
+  font-size: 1.85em;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.03em;
+  color: #e2e8f0;
+  line-height: 1;
+}
+.cd-inactive { color: #475569; }
+.view-countdown.expired .cd-label { color: #f97316; }
+.view-countdown.expired .cd-time  { color: #f97316; font-size: 1.4em; }
+
+/* ── Social / CTA ───────────────────────────────────────────────── */
+.view-social { width: 320px; }
+.social-name {
+  font-size: 0.88em;
+  font-weight: 700;
+  color: #60a5fa;
+  margin-bottom: 2px;
+}
+.social-list { display: flex; flex-direction: column; gap: 8px; }
+.social-item { display: flex; align-items: baseline; gap: 10px; }
+.social-label {
+  font-size: 0.72em;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: #64748b;
+  width: 56px;
+  flex-shrink: 0;
+}
+.social-handle {
+  font-size: 0.95em;
+  color: #e2e8f0;
+  font-weight: 500;
+  word-break: break-all;
+}
+
+/* ── Just did / Up next ─────────────────────────────────────────── */
+.view-transition {
+  width: 560px;
+  flex-direction: row;
+  align-items: center;
+  gap: 0;
+}
+.tr-side { flex: 1; padding: 4px 16px; }
+.tr-side:first-child { padding-left: 0; }
+.tr-side:last-child  { padding-right: 0; }
+.tr-side-label {
+  font-size: 0.72em;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  margin-bottom: 6px;
+}
+.tr-done .tr-side-label { color: #475569; }
+.tr-next .tr-side-label { color: #60a5fa; }
+.tr-side-title { font-size: 1.1em; font-weight: 700; line-height: 1.3; }
+.tr-done .tr-side-title { color: #64748b; }
+.tr-next .tr-side-title { color: #f1f5f9; }
+.tr-none { color: #475569 !important; font-style: italic; font-weight: 400 !important; }
+.tr-arrow {
+  font-size: 1.4em;
+  color: #334155;
+  flex-shrink: 0;
+  padding: 0 4px;
+}
+
+/* ── Recently completed tasks ───────────────────────────────────── */
+.view-done { width: 340px; }
+
+/* ── Lower thirds ───────────────────────────────────────────────── */
+.view-lowerthird { width: 600px; gap: 8px; transition: opacity 0.6s ease; }
+.lt-context {
+  font-size: 0.68em;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+  color: #60a5fa;
+}
+.lt-text {
+  font-size: 1.05em;
+  color: #e2e8f0;
+  line-height: 1.45;
+  transition: opacity 0.35s ease, transform 0.35s ease;
+}
+.lt-fade .lt-text { transition: opacity 0.6s ease; }
+.lt-dots { display: flex; gap: 6px; align-items: center; margin-top: 2px; }
+.lt-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.18);
+  transition: background 0.3s;
+  flex-shrink: 0;
+}
+.lt-dot--active { background: #60a5fa; }
+
+/* ── Stream health widget ───────────────────────────────────────── */
+.view-health { width: 340px; }
+.health-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 16px; margin-top: 8px; }
+.health-stat { display: flex; flex-direction: column; gap: 2px; }
+.health-label {
+  font-size: 0.65em;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: #64748b;
+}
+.health-value {
+  font-size: 1.1em;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: #e2e8f0;
+}
+.health-value em { font-style: normal; font-size: 0.72em; color: #64748b; margin-left: 2px; }
+.health-value.health-caution { color: #f59e0b; }
+.health-value.health-warn    { color: #f87171; }
+.health-stale { opacity: 0.5; }
+
+/* ── Timer paused (BRB) ─────────────────────────────────────────── */
+.view-timer.paused .timer-label { color: #f59e0b; }
+.view-timer.paused .timer-clock { color: #f59e0b; opacity: 0.7; }
+
+/* ── Error state ────────────────────────────────────────────────── */
+.view-error { width: 280px; color: #f87171; font-size: 0.88em; }
