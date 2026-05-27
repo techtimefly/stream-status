@@ -836,6 +836,16 @@ textarea { resize: vertical; }
   text-align: center;
 }
 .oc-unit { font-size: 0.72rem; color: var(--text-faint); }
+.oc-text {
+  flex: 1;
+  border: 1px solid var(--border-mid);
+  border-radius: 6px;
+  padding: 3px 8px;
+  background: rgba(15,23,42,0.9);
+  color: var(--text);
+  font-size: 0.78rem;
+  min-width: 0;
+}
 
 .overlay-card-url {
   border-top: 1px solid var(--border);
@@ -1717,27 +1727,18 @@ textarea { resize: vertical; }
 }
 
 /* "BG" indicator tag on canvas wbox */
-.lb-wbox-tags {
+.lb-wbox-bg-tag {
   position: absolute;
   bottom: 4px; left: 6px;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 2px;
-  pointer-events: none;
-  max-width: calc(100% - 12px);
-}
-.lb-wbox-tag {
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  color: rgba(255,255,255,0.6);
+  font-size: 8px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: rgba(255,255,255,0.55);
   background: rgba(255,255,255,0.08);
   border-radius: 3px;
   padding: 1px 4px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  max-width: 100%;
+  pointer-events: none;
 }
 
 /* ── Responsive ─────────────────────────────────────────────────── */

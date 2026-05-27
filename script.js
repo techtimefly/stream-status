@@ -460,6 +460,11 @@ function buildOverlayUrl(base, view, prefs) {
     if (iv && iv !== 8) url += `&interval=${iv}`;
     if (sh && sh > 0)   url += `&show=${sh}`;
   }
+  if (view === 'countdown') {
+    const mins = parseFloat(p.countdownMinutes);
+    if (mins > 0) url += `&countdownMinutes=${mins}`;
+    if (p.countdownLabel?.trim()) url += `&countdownLabel=${encodeURIComponent(p.countdownLabel.trim())}`;
+  }
   return url;
 }
 
@@ -535,6 +540,21 @@ function renderOverlayLinks() {
         <span class="oc-unit">s</span>
       </div>` : '';
 
+    const cdControls = o.view === 'countdown' ? `
+      <div class="oc-row">
+        <span class="oc-label">duration</span>
+        <input class="oc-number" type="number" min="0" max="480" step="0.5"
+               value="${parseFloat(p.countdownMinutes) || ''}" placeholder="–"
+               data-view="${o.view}" data-param="countdownMinutes" />
+        <span class="oc-unit">min</span>
+      </div>
+      <div class="oc-row">
+        <span class="oc-label">label</span>
+        <input class="oc-text" type="text" maxlength="40"
+               value="${esc(p.countdownLabel || '')}" placeholder="Countdown"
+               data-view="${o.view}" data-param="countdownLabel" />
+      </div>` : '';
+
     return `
       <div class="overlay-card" data-view="${o.view}">
         <div class="overlay-card-top">
@@ -551,6 +571,7 @@ function renderOverlayLinks() {
             <div class="oc-chips">${sizeChips}</div>
           </div>
           ${ltControls}
+          ${cdControls}
         </div>
         <div class="overlay-card-url">
           <code class="overlay-url-text">${esc(url)}</code>
@@ -1210,9 +1231,9 @@ function bindEvents() {
     updateCardUrl(view);
   });
 
-  /* Overlay number inputs (interval, show) */
+  /* Overlay number + text inputs (interval, show, countdownMinutes, countdownLabel, …) */
   document.getElementById('overlay-grid').addEventListener('change', e => {
-    const input = e.target.closest('.oc-number');
+    const input = e.target.closest('.oc-number, .oc-text');
     if (!input) return;
     const { view, param } = input.dataset;
     setOverlayPref(view, param, input.value);
