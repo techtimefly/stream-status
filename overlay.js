@@ -394,22 +394,37 @@ function buildLayoutStructure(p, layout) {
       return `<div style="${zStyle}">${widgets}</div>`;
     }).join('');
   } else {
-    root.innerHTML = (layout.widgets || []).map(w =>
-      `<div class="lf-w" data-lview="${w.id}" data-view="${w.view}" ` +
-      `style="position:absolute;left:${w.x}px;top:${w.y}px;` +
-      `width:${w.w}px;height:${w.h}px;overflow:hidden;">` +
-      renderWidgetHtml(w.view, p) + `</div>`
-    ).join('');
+    root.innerHTML = (layout.widgets || []).map(w => {
+      const bgCls   = w.params?.showBg ? ' has-bg' : '';
+      const opacPct = w.params?.opacity;
+      const opacSty = opacPct != null && opacPct < 100 ? `;opacity:${opacPct / 100}` : '';
+      return `<div class="lf-w${bgCls}" data-lview="${w.id}" data-view="${w.view}" ` +
+        `style="position:absolute;left:${w.x}px;top:${w.y}px;` +
+        `width:${w.w}px;height:${w.h}px;overflow:hidden${opacSty};">` +
+        renderWidgetHtml(w.view, p) + `</div>`;
+    }).join('');
   }
 }
 
 /** Subsequent polls: update each widget's innerHTML in-place (preserves LT animation). */
 function updateLayoutInPlace(p, skipLt) {
-  const root = document.getElementById('overlay-root');
+  const root   = document.getElementById('overlay-root');
+  const layout = (p.layouts || []).find(l => l.id === LAYOUT_ID);
   root.querySelectorAll('[data-lview]').forEach(el => {
     const view = el.dataset.view;
     if (view === 'lowerthird' && skipLt) return;
     el.innerHTML = renderWidgetHtml(view, p);
+
+    // Re-sync appearance params for freeform widgets
+    if (el.classList.contains('lf-w') && layout) {
+      const wid = el.dataset.lview;
+      const w   = (layout.widgets || []).find(w => w.id === wid);
+      if (w) {
+        el.classList.toggle('has-bg', !!w.params?.showBg);
+        const opacPct = w.params?.opacity;
+        el.style.opacity = opacPct != null && opacPct < 100 ? String(opacPct / 100) : '';
+      }
+    }
   });
 }
 

@@ -1303,8 +1303,8 @@ textarea { resize: vertical; }
 /* ── Editor body ────────────────────────────────────────────────── */
 .lb-editor-body {
   display: grid;
-  grid-template-columns: 160px 1fr 200px;
-  min-height: 480px;
+  grid-template-columns: 180px 1fr 270px;
+  min-height: 700px;
 }
 
 /* ── Palette (left column) ──────────────────────────────────────── */
@@ -1578,9 +1578,111 @@ textarea { resize: vertical; }
 .lb-inp:focus { border-color: var(--accent); }
 .lb-inp option { background: #0f172a; }
 
+/* ── Widget appearance controls (inspector) ─────────────────────── */
+.lb-toggle-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  font-weight: 600;
+  cursor: pointer;
+  user-select: none;
+  gap: 8px;
+}
+
+/* Toggle switch */
+.lb-switch {
+  position: relative;
+  display: inline-block;
+  width: 36px;
+  height: 20px;
+  flex-shrink: 0;
+}
+.lb-switch input { opacity: 0; width: 0; height: 0; position: absolute; }
+.lb-switch-slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(255,255,255,0.12);
+  border-radius: 20px;
+  transition: background 0.2s;
+}
+.lb-switch-slider:before {
+  position: absolute;
+  content: '';
+  height: 14px; width: 14px;
+  left: 3px; bottom: 3px;
+  background: rgba(255,255,255,0.5);
+  border-radius: 50%;
+  transition: transform 0.2s, background 0.2s;
+}
+.lb-switch input:checked + .lb-switch-slider { background: var(--accent); }
+.lb-switch input:checked + .lb-switch-slider:before {
+  transform: translateX(16px);
+  background: #fff;
+}
+
+/* Opacity row */
+.lb-opacity-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 2px;
+}
+.lb-opacity-range {
+  flex: 1;
+  -webkit-appearance: none;
+  appearance: none;
+  height: 4px;
+  background: rgba(255,255,255,0.15);
+  border-radius: 2px;
+  outline: none;
+  cursor: pointer;
+  border: none;
+  padding: 0;
+}
+.lb-opacity-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 14px; height: 14px;
+  border-radius: 50%;
+  background: var(--accent);
+  cursor: pointer;
+  border: 2px solid #fff;
+}
+.lb-opacity-range::-moz-range-thumb {
+  width: 14px; height: 14px;
+  border-radius: 50%;
+  background: var(--accent);
+  cursor: pointer;
+  border: 2px solid #fff;
+}
+.lb-opacity-val {
+  font-size: 0.72rem;
+  color: var(--text-faint);
+  min-width: 34px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+/* "BG" indicator tag on canvas wbox */
+.lb-wbox-bg-tag {
+  position: absolute;
+  bottom: 4px; left: 6px;
+  font-size: 8px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: rgba(255,255,255,0.55);
+  background: rgba(255,255,255,0.08);
+  border-radius: 3px;
+  padding: 1px 4px;
+  pointer-events: none;
+}
+
 /* ── Responsive ─────────────────────────────────────────────────── */
 @media (max-width: 900px) {
-  .lb-editor-body { grid-template-columns: 130px 1fr; }
+  .lb-editor-body { grid-template-columns: 150px 1fr; }
   .lb-inspector { display: none; }
 }
 @media (max-width: 640px) {

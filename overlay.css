@@ -269,6 +269,17 @@ body.size-lg    { font-size: 19px; }
   border: none;
   background: transparent;
 }
+
+/* Widget with "Show background" enabled — restore the dark panel look */
+.lf-w.has-bg .panel {
+  background: rgba(9, 11, 16, 0.88) !important;
+  border: 1px solid rgba(255, 255, 255, 0.10) !important;
+  border-radius: 14px !important;
+}
+.lz-w.has-bg .panel {
+  background: rgba(9, 11, 16, 0.88) !important;
+  border: 1px solid rgba(255, 255, 255, 0.10) !important;
+}
 /* Lower-third: override fixed width when inside a layout */
 .lz-w .view-lowerthird,
 .lf-w .view-lowerthird { width: 100%; }

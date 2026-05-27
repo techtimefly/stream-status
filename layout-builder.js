@@ -503,12 +503,16 @@ function lbRenderFreeformCanvas(canvas) {
     const deleteBtn = sel
       ? `<button class="lb-wbox-delete" data-wid="${w.id}" title="Remove widget">✕</button>` : '';
 
+    const opacity  = w.params?.opacity != null ? w.params.opacity / 100 : 1;
+    const bgTag    = w.params?.showBg ? `<span class="lb-wbox-bg-tag">BG</span>` : '';
+
     return `
       <div class="lb-wbox${sel ? ' selected' : ''}" data-wid="${w.id}"
            style="left:${w.x}px;top:${w.y}px;width:${w.w}px;height:${w.h}px;
-                  border-color:${color}${sel ? '' : '77'}">
+                  border-color:${color}${sel ? '' : '77'};opacity:${opacity}">
         <span class="lb-wbox-label" style="color:${color}">${def.label || w.view}</span>
         <span class="lb-wbox-size">${w.w}×${w.h}</span>
+        ${bgTag}
         ${deleteBtn}
         ${handles}
       </div>`;
@@ -728,6 +732,23 @@ function lbRenderInspector() {
           <button class="oc-chip${w.params?.size === 'lg' ? ' active' : ''}" data-sz="lg">lg</button>
         </div>
       </div>
+      <div class="lb-insp-group">
+        <p class="lb-insp-subtitle">Appearance</p>
+        <label class="lb-toggle-row">
+          <span>Show panel background</span>
+          <label class="lb-switch">
+            <input type="checkbox" id="insp-showbg"${w.params?.showBg ? ' checked' : ''}>
+            <span class="lb-switch-slider"></span>
+          </label>
+        </label>
+        <div class="lb-insp-label">Opacity
+          <div class="lb-opacity-row">
+            <input class="lb-opacity-range" type="range" id="insp-opacity"
+                   min="10" max="100" step="5" value="${w.params?.opacity ?? 100}" />
+            <span class="lb-opacity-val" id="insp-opacity-val">${w.params?.opacity ?? 100}%</span>
+          </div>
+        </div>
+      </div>
       <button class="btn-ghost btn-sm lb-insp-delete">&#x2715; Remove widget</button>`;
 
     // Bind inputs
@@ -743,6 +764,25 @@ function lbRenderInspector() {
         el.querySelectorAll('[data-sz]').forEach(b => b.classList.toggle('active', b === btn));
       });
     });
+
+    // Appearance: showBg toggle
+    document.getElementById('insp-showbg')?.addEventListener('change', e => {
+      (w.params ??= {}).showBg = e.target.checked;
+      lbRenderCanvas();
+    });
+
+    // Appearance: opacity slider
+    const opacInp = document.getElementById('insp-opacity');
+    const opacVal = document.getElementById('insp-opacity-val');
+    opacInp?.addEventListener('input', e => {
+      const val = parseInt(e.target.value);
+      (w.params ??= {}).opacity = val;
+      if (opacVal) opacVal.textContent = val + '%';
+      // Live-update the canvas wbox opacity without full re-render
+      const wbox = document.querySelector(`#lb-canvas [data-wid="${w.id}"]`);
+      if (wbox) wbox.style.opacity = String(val / 100);
+    });
+
     el.querySelector('.lb-insp-delete')?.addEventListener('click', () => lbDeleteFreeformWidget(lbSelected));
 
   } else {
