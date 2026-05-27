@@ -560,10 +560,23 @@ function lbRenderFreeformCanvas(canvas) {
       ? `<button class="lb-wbox-delete" data-wid="${w.id}" title="Remove widget">✕</button>` : '';
 
     const opacity   = w.params?.opacity != null ? w.params.opacity / 100 : 1;
-    const bgTag     = w.params?.showBg ? `<span class="lb-wbox-bg-tag">BG</span>` : '';
     // Scale font sizes up so they appear readable at the canvas display scale
     const labelPx   = Math.round(13 / lbScale);
     const metaPx    = Math.round(10 / lbScale);
+    const tagPx     = Math.round(8  / lbScale);
+
+    // Bottom-left tag strip — BG indicator + countdown params
+    const tagItems = [];
+    if (w.params?.showBg) tagItems.push(`<span class="lb-wbox-tag">BG</span>`);
+    if (w.view === 'countdown') {
+      const mins = w.params?.countdownMinutes;
+      const lbl  = w.params?.countdownLabel;
+      if (mins) tagItems.push(`<span class="lb-wbox-tag">⏱ ${mins}min</span>`);
+      if (lbl)  tagItems.push(`<span class="lb-wbox-tag">❝ ${lbl}</span>`);
+    }
+    const tagStrip = tagItems.length
+      ? `<div class="lb-wbox-tags" style="font-size:${tagPx}px">${tagItems.join('')}</div>`
+      : '';
 
     return `
       <div class="lb-wbox${sel ? ' selected' : ''}" data-wid="${w.id}"
@@ -571,7 +584,7 @@ function lbRenderFreeformCanvas(canvas) {
                   border-color:${color}${sel ? '' : '77'};opacity:${opacity}">
         <span class="lb-wbox-label" style="color:${color};font-size:${labelPx}px">${def.label || w.view}</span>
         <span class="lb-wbox-size" style="font-size:${metaPx}px">${w.w}×${w.h}</span>
-        ${bgTag}
+        ${tagStrip}
         ${deleteBtn}
         ${handles}
       </div>`;

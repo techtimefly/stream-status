@@ -110,13 +110,14 @@ body.size-lg    { font-size: 19px; }
 .view-timer.live .timer-clock { color: #34d399; }
 
 /* ── Countdown ──────────────────────────────────────────────────── */
-.view-countdown { width: 300px; gap: 4px; }
+.view-countdown { width: 300px; gap: 4px; text-align: center; }
 .cd-label {
   font-size: 0.72em;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.14em;
   color: #60a5fa;
+  text-align: center;
 }
 .cd-time {
   font-size: 1.85em;
@@ -125,6 +126,7 @@ body.size-lg    { font-size: 19px; }
   letter-spacing: 0.03em;
   color: #e2e8f0;
   line-height: 1;
+  text-align: center;
 }
 .cd-inactive { color: #475569; }
 .view-countdown.expired .cd-label { color: #f97316; }
