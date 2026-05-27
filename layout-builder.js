@@ -117,6 +117,7 @@ const LB_ZONE_TEMPLATES = [
 /* ── Editor state ───────────────────────────────────────────────── */
 let lbEditing    = null;   // Layout object being edited (deep copy)
 let lbSelected   = null;   // Selected widget id (freeform) or zone id (zones)
+let lbZwSelected = null;   // { zoneId, widgetId } when a zone chip is selected
 let lbDragView   = null;   // View name being dragged from palette
 let lbScale      = 1;      // Canvas display scale
 
@@ -262,9 +263,10 @@ function openLayoutEditor(existing) {
 }
 
 function closeLayoutEditor() {
-  lbEditing  = null;
-  lbSelected = null;
-  lbDragView = null;
+  lbEditing    = null;
+  lbSelected   = null;
+  lbZwSelected = null;
+  lbDragView   = null;
   document.getElementById('lb-editor')?.remove();
   document.getElementById('layout-list').classList.remove('hidden');
   document.getElementById('new-layout-btn').classList.remove('hidden');
@@ -369,7 +371,8 @@ function lbBindEditorEvents() {
       document.getElementById('lb-template-bar').addEventListener('click', lbTemplateBarClick);
       if (!lbEditing.zones?.length) lbApplyTemplate(LB_ZONE_TEMPLATES[0].id);
     }
-    lbSelected = null;
+    lbSelected   = null;
+    lbZwSelected = null;
     lbRenderCanvas();
     lbRenderInspector();
   });
@@ -590,7 +593,8 @@ function lbApplyTemplate(templateId) {
     };
   });
 
-  lbSelected = null;
+  lbSelected   = null;
+  lbZwSelected = null;
   lbRenderCanvas();
   lbRenderInspector();
 }
@@ -625,9 +629,10 @@ function lbRenderZoneCanvas(canvas) {
     const widgets  = (zone.widgets || []).map(zw => {
       const def   = LB_WIDGETS.find(d => d.view === zw.view) || {};
       const color = def.color || '#334155';
+      const chipSel = lbZwSelected?.widgetId === zw.id;
       return `
-        <div class="lb-zone-chip" data-zone-id="${zone.id}" data-zwid="${zw.id}"
-             style="border-color:${color}66;background:${color}22;font-size:${chipPx}px">
+        <div class="lb-zone-chip${chipSel ? ' selected' : ''}" data-zone-id="${zone.id}" data-zwid="${zw.id}"
+             style="border-color:${chipSel ? color : color+'66'};background:${color}22;font-size:${chipPx}px">
           <span style="color:${color}">${def.label || zw.view}</span>
           <button class="lb-zone-chip-del" data-zone-id="${zone.id}" data-zwid="${zw.id}"
                   title="Remove" style="font-size:${Math.round(9/lbScale)}px">✕</button>
@@ -648,11 +653,15 @@ function lbRenderZoneCanvas(canvas) {
       </div>`;
   }).join('');
 
-  // Zone click → select
+  // Zone click → select zone or chip widget
   canvas.querySelectorAll('.lb-zone-box').forEach(el => {
     el.addEventListener('click', e => {
       if (e.target.classList.contains('lb-zone-chip-del')) return;
+      const chip = e.target.closest('.lb-zone-chip');
       lbSelected = el.dataset.zoneId;
+      lbZwSelected = chip
+        ? { zoneId: chip.dataset.zoneId, widgetId: chip.dataset.zwid }
+        : null;
       lbRenderCanvas(); lbRenderInspector();
     });
 
@@ -847,7 +856,92 @@ function lbRenderInspector() {
     el.querySelector('.lb-insp-delete')?.addEventListener('click', () => lbDeleteFreeformWidget(lbSelected));
 
   } else {
-    // Zone inspector
+    // Zone mode: chip selected → show widget inspector
+    if (lbZwSelected) {
+      const zone = (lbEditing.zones || []).find(z => z.id === lbZwSelected.zoneId);
+      const zw   = (zone?.widgets || []).find(w => w.id === lbZwSelected.widgetId);
+      if (!zw) { lbZwSelected = null; lbRenderInspector(); return; }
+      const def = LB_WIDGETS.find(d => d.view === zw.view) || {};
+      el.innerHTML = `
+        <div class="lb-insp-group">
+          <p class="lb-insp-title" style="color:${def.color||'#60a5fa'}">${def.label || zw.view}</p>
+          <p class="lb-insp-subtitle" style="margin-top:-4px">in ${esc(zone.label)}</p>
+        </div>
+        <div class="lb-insp-group">
+          <p class="lb-insp-subtitle">Appearance</p>
+          <label class="lb-toggle-row">
+            <span>Show panel background</span>
+            <label class="lb-switch">
+              <input type="checkbox" id="insp-showbg"${zw.params?.showBg ? ' checked' : ''}>
+              <span class="lb-switch-slider"></span>
+            </label>
+          </label>
+          <div class="lb-insp-label">Opacity
+            <div class="lb-opacity-row">
+              <input class="lb-opacity-range" type="range" id="insp-opacity"
+                     min="10" max="100" step="5" value="${zw.params?.opacity ?? 100}" />
+              <span class="lb-opacity-val" id="insp-opacity-val">${zw.params?.opacity ?? 100}%</span>
+            </div>
+          </div>
+        </div>
+        ${zw.view === 'lowerthird' ? `
+        <div class="lb-insp-group">
+          <p class="lb-insp-subtitle">Lower thirds</p>
+          <label class="lb-insp-label">Rotation interval
+            <div class="lb-insp-unit-row">
+              <input class="lb-inp" type="number" id="insp-lt-interval"
+                     value="${zw.params?.interval ?? 8}" min="3" max="120" />
+              <span class="lb-insp-unit">sec</span>
+            </div>
+          </label>
+          <label class="lb-insp-label">Show duration
+            <div class="lb-insp-unit-row">
+              <input class="lb-inp" type="number" id="insp-lt-show"
+                     value="${zw.params?.show ?? ''}" min="1" max="120" placeholder="full" />
+              <span class="lb-insp-unit">sec</span>
+            </div>
+          </label>
+          <label class="lb-insp-label">Transition
+            <select class="lb-inp" id="insp-lt-transition">
+              <option value="slide" ${(zw.params?.transition ?? 'slide') === 'slide' ? 'selected' : ''}>Slide</option>
+              <option value="fade"  ${zw.params?.transition === 'fade'  ? 'selected' : ''}>Fade</option>
+            </select>
+          </label>
+        </div>` : ''}
+        <button class="btn-ghost btn-sm lb-insp-delete">&#x2715; Remove from zone</button>`;
+
+      document.getElementById('insp-showbg')?.addEventListener('change', e => {
+        (zw.params ??= {}).showBg = e.target.checked;
+      });
+      const zwOpacInp = document.getElementById('insp-opacity');
+      const zwOpacVal = document.getElementById('insp-opacity-val');
+      zwOpacInp?.addEventListener('input', e => {
+        const val = parseInt(e.target.value);
+        (zw.params ??= {}).opacity = val;
+        if (zwOpacVal) zwOpacVal.textContent = val + '%';
+      });
+      if (zw.view === 'lowerthird') {
+        document.getElementById('insp-lt-interval')?.addEventListener('change', e => {
+          const val = Math.max(3, parseInt(e.target.value) || 8);
+          (zw.params ??= {}).interval = val; e.target.value = val;
+        });
+        document.getElementById('insp-lt-show')?.addEventListener('change', e => {
+          const val = parseInt(e.target.value);
+          if (!val || val < 1) { delete (zw.params ??= {}).show; e.target.value = ''; }
+          else (zw.params ??= {}).show = val;
+        });
+        document.getElementById('insp-lt-transition')?.addEventListener('change', e => {
+          (zw.params ??= {}).transition = e.target.value;
+        });
+      }
+      el.querySelector('.lb-insp-delete')?.addEventListener('click', () => {
+        lbRemoveZoneWidget(lbZwSelected.zoneId, lbZwSelected.widgetId);
+        lbZwSelected = null;
+      });
+      return;
+    }
+
+    // Zone selected → show zone inspector
     const zone = (lbEditing.zones || []).find(z => z.id === lbSelected);
     if (!zone) { el.innerHTML = ''; return; }
     el.innerHTML = `
@@ -875,7 +969,7 @@ function lbRenderInspector() {
         </label>
       </div>
       <p class="lb-inspector-empty" style="font-size:0.78rem;padding:0">
-        Drag widgets from the palette into this zone.<br>Click ✕ on a chip to remove it.
+        Drag widgets from the palette into this zone.<br>Click a chip to edit its properties.
       </p>`;
 
     document.getElementById('insp-dir')?.addEventListener('change', e => {

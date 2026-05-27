@@ -1503,6 +1503,10 @@ textarea { resize: vertical; }
   white-space: nowrap;
   position: relative;
 }
+.lb-zone-chip.selected {
+  box-shadow: 0 0 0 2px rgba(96,165,250,0.7);
+  cursor: pointer;
+}
 .lb-zone-chip-del {
   border: none; background: transparent;
   color: rgba(255,255,255,0.4);
