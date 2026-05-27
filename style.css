@@ -1555,8 +1555,11 @@ textarea { resize: vertical; }
   text-transform: uppercase;
   letter-spacing: 0.06em;
 }
-.lb-insp-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-.lb-insp-chips { display: flex; gap: 4px; }
+.lb-insp-row      { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.lb-insp-chips    { display: flex; gap: 4px; }
+.lb-insp-unit-row { display: flex; align-items: center; gap: 6px; }
+.lb-insp-unit-row .lb-inp { flex: 1; }
+.lb-insp-unit     { font-size: 0.72rem; color: var(--text-faint); flex-shrink: 0; }
 .lb-insp-delete {
   color: #f87171 !important;
   border-color: rgba(248,113,113,0.3) !important;

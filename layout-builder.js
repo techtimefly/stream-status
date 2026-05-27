@@ -208,6 +208,18 @@ async function lbListClick(e) {
 function lbBuildUrl(layoutId) {
   let url = `${location.origin}/overlay.html?view=layout&layout=${encodeURIComponent(layoutId)}`;
   if (project?.id) url += `&project=${encodeURIComponent(project.id)}`;
+
+  // Inject lower-thirds params from the layout's lowerthird widget into the URL
+  const layout = (project?.layouts || []).find(l => l.id === layoutId);
+  if (layout) {
+    const ltWgt = layout.mode === 'freeform'
+      ? (layout.widgets || []).find(w => w.view === 'lowerthird')
+      : (layout.zones  || []).flatMap(z => z.widgets || []).find(w => w.view === 'lowerthird');
+    if (ltWgt?.params?.interval)   url += `&interval=${ltWgt.params.interval}`;
+    if (ltWgt?.params?.show)       url += `&show=${ltWgt.params.show}`;
+    if (ltWgt?.params?.transition) url += `&transition=${encodeURIComponent(ltWgt.params.transition)}`;
+  }
+
   return url;
 }
 
@@ -757,6 +769,30 @@ function lbRenderInspector() {
           </div>
         </div>
       </div>
+      ${w.view === 'lowerthird' ? `
+      <div class="lb-insp-group">
+        <p class="lb-insp-subtitle">Lower thirds</p>
+        <label class="lb-insp-label">Rotation interval
+          <div class="lb-insp-unit-row">
+            <input class="lb-inp" type="number" id="insp-lt-interval"
+                   value="${w.params?.interval ?? 8}" min="3" max="120" />
+            <span class="lb-insp-unit">sec</span>
+          </div>
+        </label>
+        <label class="lb-insp-label">Show duration
+          <div class="lb-insp-unit-row">
+            <input class="lb-inp" type="number" id="insp-lt-show"
+                   value="${w.params?.show ?? ''}" min="1" max="120" placeholder="full" />
+            <span class="lb-insp-unit">sec</span>
+          </div>
+        </label>
+        <label class="lb-insp-label">Transition
+          <select class="lb-inp" id="insp-lt-transition">
+            <option value="slide" ${(w.params?.transition ?? 'slide') === 'slide' ? 'selected' : ''}>Slide</option>
+            <option value="fade"  ${w.params?.transition === 'fade'  ? 'selected' : ''}>Fade</option>
+          </select>
+        </label>
+      </div>` : ''}
       <button class="btn-ghost btn-sm lb-insp-delete">&#x2715; Remove widget</button>`;
 
     // Bind inputs
@@ -790,6 +826,23 @@ function lbRenderInspector() {
       const wbox = document.querySelector(`#lb-canvas [data-wid="${w.id}"]`);
       if (wbox) wbox.style.opacity = String(val / 100);
     });
+
+    // Lower thirds widget-specific params
+    if (w.view === 'lowerthird') {
+      document.getElementById('insp-lt-interval')?.addEventListener('change', e => {
+        const val = Math.max(3, parseInt(e.target.value) || 8);
+        (w.params ??= {}).interval = val;
+        e.target.value = val;
+      });
+      document.getElementById('insp-lt-show')?.addEventListener('change', e => {
+        const val = parseInt(e.target.value);
+        if (!val || val < 1) { delete (w.params ??= {}).show; e.target.value = ''; }
+        else (w.params ??= {}).show = val;
+      });
+      document.getElementById('insp-lt-transition')?.addEventListener('change', e => {
+        (w.params ??= {}).transition = e.target.value;
+      });
+    }
 
     el.querySelector('.lb-insp-delete')?.addEventListener('click', () => lbDeleteFreeformWidget(lbSelected));
 
