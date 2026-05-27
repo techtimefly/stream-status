@@ -387,10 +387,15 @@ function buildLayoutStructure(p, layout) {
         `width:${zone.w}px;height:${zone.h}px;display:flex;` +
         `flex-direction:${zone.direction || 'row'};gap:${zone.gap || 0}px;` +
         `align-items:${zone.align || 'flex-start'};overflow:hidden;box-sizing:border-box;`;
-      const widgets = (zone.widgets || []).map((zw, i) =>
-        `<div class="lz-w" data-lview="${zone.id}-${i}" data-view="${zw.view}">` +
-        renderWidgetHtml(zw.view, p) + `</div>`
-      ).join('');
+      const widgets = (zone.widgets || []).map((zw, i) => {
+        const bgCls   = zw.params?.showBg ? ' has-bg' : '';
+        const opacPct = zw.params?.opacity;
+        const opacSty = opacPct != null && opacPct < 100 ? `opacity:${opacPct / 100};` : '';
+        return `<div class="lz-w${bgCls}" data-lview="${zone.id}-${i}" ` +
+          `data-view="${zw.view}" data-zwid="${zw.id}"` +
+          (opacSty ? ` style="${opacSty}"` : '') + `>` +
+          renderWidgetHtml(zw.view, p) + `</div>`;
+      }).join('');
       return `<div style="${zStyle}">${widgets}</div>`;
     }).join('');
   } else {
@@ -415,13 +420,24 @@ function updateLayoutInPlace(p, skipLt) {
     if (view === 'lowerthird' && skipLt) return;
     el.innerHTML = renderWidgetHtml(view, p);
 
-    // Re-sync appearance params for freeform widgets
+    // Re-sync appearance params (freeform)
     if (el.classList.contains('lf-w') && layout) {
-      const wid = el.dataset.lview;
-      const w   = (layout.widgets || []).find(w => w.id === wid);
+      const w = (layout.widgets || []).find(w => w.id === el.dataset.lview);
       if (w) {
         el.classList.toggle('has-bg', !!w.params?.showBg);
         const opacPct = w.params?.opacity;
+        el.style.opacity = opacPct != null && opacPct < 100 ? String(opacPct / 100) : '';
+      }
+    }
+    // Re-sync appearance params (zone widgets)
+    if (el.classList.contains('lz-w') && layout) {
+      const zwid = el.dataset.zwid;
+      const zw   = zwid
+        ? (layout.zones || []).flatMap(z => z.widgets || []).find(w => w.id === zwid)
+        : null;
+      if (zw) {
+        el.classList.toggle('has-bg', !!zw.params?.showBg);
+        const opacPct = zw.params?.opacity;
         el.style.opacity = opacPct != null && opacPct < 100 ? String(opacPct / 100) : '';
       }
     }
