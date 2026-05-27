@@ -5,9 +5,22 @@ import urllib.request
 from datetime import datetime, timezone
 from flask import Flask, jsonify, request, abort
 
-DATA_DIR    = '/var/lib/stream-status/projects'
-ACTIVE_FILE = '/var/lib/stream-status/active.json'
+DATA_DIR            = '/var/lib/stream-status/projects'
+ACTIVE_FILE         = '/var/lib/stream-status/active.json'
+GLOBAL_LAYOUTS_FILE = '/var/lib/stream-status/global-layouts.json'
 os.makedirs(DATA_DIR, exist_ok=True)
+
+
+def _read_global_layouts() -> list:
+    if not os.path.exists(GLOBAL_LAYOUTS_FILE):
+        return []
+    with open(GLOBAL_LAYOUTS_FILE) as f:
+        return json.load(f)
+
+
+def _write_global_layouts(layouts: list) -> None:
+    with open(GLOBAL_LAYOUTS_FILE, 'w') as f:
+        json.dump(layouts, f, indent=2)
 
 app = Flask(__name__)
 
@@ -192,6 +205,56 @@ def delete_layout(project_id, layout_id):
     project['layouts'] = [l for l in project.get('layouts', []) if l.get('id') != layout_id]
     project['updatedAt'] = _now()
     _write(project)
+    return '', 204
+
+
+@app.route('/api/layouts', methods=['GET'])
+def list_global_layouts():
+    return jsonify(_read_global_layouts())
+
+
+@app.route('/api/layouts', methods=['POST'])
+def create_global_layout():
+    body = request.get_json(silent=True)
+    if not body or not body.get('id'):
+        abort(400)
+    layouts = _read_global_layouts()
+    layouts = [l for l in layouts if l.get('id') != body['id']]
+    body['global'] = True
+    layouts.append(body)
+    _write_global_layouts(layouts)
+    return jsonify(body), 201
+
+
+@app.route('/api/layouts/<layout_id>', methods=['GET'])
+def get_global_layout(layout_id):
+    layout = next((l for l in _read_global_layouts() if l.get('id') == layout_id), None)
+    if not layout:
+        abort(404)
+    return jsonify(layout)
+
+
+@app.route('/api/layouts/<layout_id>', methods=['PUT'])
+def update_global_layout(layout_id):
+    body = request.get_json(silent=True)
+    if not body:
+        abort(400)
+    layouts = _read_global_layouts()
+    body['id'] = layout_id
+    body['global'] = True
+    idx = next((i for i, l in enumerate(layouts) if l.get('id') == layout_id), None)
+    if idx is not None:
+        layouts[idx] = body
+    else:
+        layouts.append(body)
+    _write_global_layouts(layouts)
+    return jsonify(body)
+
+
+@app.route('/api/layouts/<layout_id>', methods=['DELETE'])
+def delete_global_layout(layout_id):
+    layouts = [l for l in _read_global_layouts() if l.get('id') != layout_id]
+    _write_global_layouts(layouts)
     return '', 204
 
 

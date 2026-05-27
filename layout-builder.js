@@ -115,11 +115,12 @@ const LB_ZONE_TEMPLATES = [
 ];
 
 /* ── Editor state ───────────────────────────────────────────────── */
-let lbEditing    = null;   // Layout object being edited (deep copy)
-let lbSelected   = null;   // Selected widget id (freeform) or zone id (zones)
-let lbZwSelected = null;   // { zoneId, widgetId } when a zone chip is selected
-let lbDragView   = null;   // View name being dragged from palette
-let lbScale      = 1;      // Canvas display scale
+let lbEditing       = null;   // Layout object being edited (deep copy)
+let lbSelected      = null;   // Selected widget id (freeform) or zone id (zones)
+let lbZwSelected    = null;   // { zoneId, widgetId } when a zone chip is selected
+let lbDragView      = null;   // View name being dragged from palette
+let lbScale         = 1;      // Canvas display scale
+let lbGlobalLayouts = [];     // Cached global layouts from /api/layouts
 
 /* ── Init ───────────────────────────────────────────────────────── */
 function initLayoutBuilder() {
@@ -141,38 +142,58 @@ function initLayoutBuilder() {
 /* ═══════════════════════════════════════════════════════════════════
    LAYOUT LIST
    ═══════════════════════════════════════════════════════════════════ */
-function renderLayoutList() {
+function _lbRowHtml(l) {
+  const wCount = l.mode === 'zones'
+    ? (l.zones || []).reduce((n, z) => n + (z.widgets || []).length, 0)
+    : (l.widgets || []).length;
+  const url = lbBuildUrl(l.id, l.global);
+  return `
+    <div class="lb-row${l.global ? ' lb-row-global' : ''}" data-lid="${esc(l.id)}" data-global="${l.global ? '1' : '0'}">
+      <div class="lb-row-info">
+        <span class="lb-row-name">${esc(l.name)}</span>
+        ${l.global ? '<span class="lb-global-badge">🌐 Global</span>' : ''}
+        <span class="lb-mode-badge lb-mode-${l.mode}">${l.mode}</span>
+        <span class="lb-row-meta">${l.canvasW}×${l.canvasH} · ${wCount} widget${wCount !== 1 ? 's' : ''}</span>
+      </div>
+      <div class="lb-row-actions">
+        <button class="btn-ghost btn-sm lb-edit-btn"     data-lid="${esc(l.id)}" data-global="${l.global ? '1' : '0'}">Edit</button>
+        <button class="btn-ghost btn-sm lb-copy-url-btn" data-url="${esc(url)}">Copy URL</button>
+        <a      class="btn-ghost btn-sm"                 href="${esc(url)}" target="_blank" rel="noopener">Preview</a>
+        <button class="icon-btn lb-delete-btn"           data-lid="${esc(l.id)}" data-global="${l.global ? '1' : '0'}" title="Delete layout">&#x2715;</button>
+      </div>
+    </div>`;
+}
+
+async function renderLayoutList() {
   const el = document.getElementById('layout-list');
   if (!el || !project) return;
-  const layouts = project.layouts || [];
 
-  if (!layouts.length) {
+  // Fetch global layouts
+  try {
+    const res = await fetch('/api/layouts');
+    lbGlobalLayouts = res.ok ? await res.json() : [];
+  } catch { lbGlobalLayouts = []; }
+
+  const projectLayouts = project.layouts || [];
+  const hasProject = projectLayouts.length > 0;
+  const hasGlobal  = lbGlobalLayouts.length > 0;
+
+  if (!hasProject && !hasGlobal) {
     el.innerHTML = `<p class="lb-empty">No layouts yet — click <em>+ New layout</em> to create one.</p>`;
+    el.addEventListener('click', lbListClick);
     return;
   }
 
-  el.innerHTML = layouts.map(l => {
-    const wCount = l.mode === 'zones'
-      ? (l.zones || []).reduce((n, z) => n + (z.widgets || []).length, 0)
-      : (l.widgets || []).length;
-    const url = lbBuildUrl(l.id);
-    return `
-      <div class="lb-row" data-lid="${esc(l.id)}">
-        <div class="lb-row-info">
-          <span class="lb-row-name">${esc(l.name)}</span>
-          <span class="lb-mode-badge lb-mode-${l.mode}">${l.mode}</span>
-          <span class="lb-row-meta">${l.canvasW}×${l.canvasH} · ${wCount} widget${wCount !== 1 ? 's' : ''}</span>
-        </div>
-        <div class="lb-row-actions">
-          <button class="btn-ghost btn-sm lb-edit-btn"     data-lid="${esc(l.id)}">Edit</button>
-          <button class="btn-ghost btn-sm lb-copy-url-btn" data-url="${esc(url)}">Copy URL</button>
-          <a      class="btn-ghost btn-sm"                 href="${esc(url)}" target="_blank" rel="noopener">Preview</a>
-          <button class="icon-btn lb-delete-btn"           data-lid="${esc(l.id)}" title="Delete layout">&#x2715;</button>
-        </div>
-      </div>`;
-  }).join('');
-
-  // Bind once per render (event delegation)
+  let html = '';
+  if (hasProject) {
+    html += `<p class="lb-list-group-label">Project layouts</p>`;
+    html += projectLayouts.map(_lbRowHtml).join('');
+  }
+  if (hasGlobal) {
+    html += `<p class="lb-list-group-label lb-list-group-label--global">🌐 Global layouts</p>`;
+    html += lbGlobalLayouts.map(_lbRowHtml).join('');
+  }
+  el.innerHTML = html;
   el.addEventListener('click', lbListClick);
 }
 
@@ -182,17 +203,27 @@ async function lbListClick(e) {
   const copyBtn   = e.target.closest('.lb-copy-url-btn');
 
   if (editBtn) {
-    const l = (project.layouts || []).find(l => l.id === editBtn.dataset.lid);
+    const isGlobal = editBtn.dataset.global === '1';
+    const lid = editBtn.dataset.lid;
+    let l = isGlobal
+      ? lbGlobalLayouts.find(l => l.id === lid)
+      : (project.layouts || []).find(l => l.id === lid);
     if (l) openLayoutEditor(JSON.parse(JSON.stringify(l)));
   }
 
   if (deleteBtn) {
+    const isGlobal = deleteBtn.dataset.global === '1';
     const lid = deleteBtn.dataset.lid;
-    const l   = (project.layouts || []).find(l => l.id === lid);
+    const src = isGlobal ? lbGlobalLayouts : (project.layouts || []);
+    const l   = src.find(l => l.id === lid);
     if (!confirm(`Delete layout "${l?.name || lid}"? This cannot be undone.`)) return;
-    project.layouts = (project.layouts || []).filter(l => l.id !== lid);
-    await saveProject();
-    renderLayoutList();
+    if (isGlobal) {
+      await fetch(`/api/layouts/${encodeURIComponent(lid)}`, { method: 'DELETE' });
+    } else {
+      project.layouts = (project.layouts || []).filter(l => l.id !== lid);
+      await saveProject();
+    }
+    await renderLayoutList();
     showToast('Layout deleted');
   }
 
@@ -206,12 +237,15 @@ async function lbListClick(e) {
   }
 }
 
-function lbBuildUrl(layoutId) {
+function lbBuildUrl(layoutId, isGlobal) {
   let url = `${location.origin}/overlay.html?view=layout&layout=${encodeURIComponent(layoutId)}`;
-  if (project?.id) url += `&project=${encodeURIComponent(project.id)}`;
+  // Global layouts don't include project= so the overlay always uses the active project
+  if (!isGlobal && project?.id) url += `&project=${encodeURIComponent(project.id)}`;
 
   // Inject lower-thirds params from the layout's lowerthird widget into the URL
-  const layout = (project?.layouts || []).find(l => l.id === layoutId);
+  const layout = isGlobal
+    ? lbGlobalLayouts.find(l => l.id === layoutId)
+    : (project?.layouts || []).find(l => l.id === layoutId);
   if (layout) {
     const ltWgt = layout.mode === 'freeform'
       ? (layout.widgets || []).find(w => w.view === 'lowerthird')
@@ -301,6 +335,13 @@ function lbBuildEditorHtml() {
         <button class="lb-mode-btn${lbEditing.mode === 'freeform' ? ' active' : ''}" data-mode="freeform">Freeform</button>
         <button class="lb-mode-btn${lbEditing.mode === 'zones'    ? ' active' : ''}" data-mode="zones">Zones</button>
       </div>
+      <label class="lb-global-toggle" title="Global layouts work across all projects and never need the OBS URL updated">
+        <label class="lb-switch">
+          <input type="checkbox" id="lb-global-check"${lbEditing.global ? ' checked' : ''}>
+          <span class="lb-switch-slider"></span>
+        </label>
+        <span class="lb-global-toggle-label">🌐 Global</span>
+      </label>
       <button id="lb-save-btn" class="btn-primary btn-sm">Save layout</button>
     </div>
     <div class="lb-editor-body">
@@ -999,14 +1040,33 @@ function lbInspectorSync() {
 async function lbSave() {
   if (!project) return;
   const nameEl = document.getElementById('lb-name-input');
-  lbEditing.name = (nameEl?.value || '').trim() || 'Untitled Layout';
+  lbEditing.name   = (nameEl?.value || '').trim() || 'Untitled Layout';
+  lbEditing.global = !!(document.getElementById('lb-global-check')?.checked);
 
-  (project.layouts ??= []);
-  const idx = project.layouts.findIndex(l => l.id === lbEditing.id);
-  if (idx >= 0) project.layouts[idx] = lbEditing;
-  else          project.layouts.push(lbEditing);
+  if (lbEditing.global) {
+    // Save to global layouts API
+    await fetch('/api/layouts', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify(lbEditing),
+    });
+    // Remove from project layouts if it previously lived there
+    project.layouts = (project.layouts || []).filter(l => l.id !== lbEditing.id);
+    await saveProject();
+  } else {
+    // Remove from global layouts if it was previously global
+    const wasGlobal = lbGlobalLayouts.some(l => l.id === lbEditing.id);
+    if (wasGlobal) {
+      await fetch(`/api/layouts/${encodeURIComponent(lbEditing.id)}`, { method: 'DELETE' });
+    }
+    // Save to project
+    (project.layouts ??= []);
+    const idx = project.layouts.findIndex(l => l.id === lbEditing.id);
+    if (idx >= 0) project.layouts[idx] = lbEditing;
+    else          project.layouts.push(lbEditing);
+    await saveProject();
+  }
 
-  await saveProject();
   showToast('Layout saved');
   closeLayoutEditor();
 }

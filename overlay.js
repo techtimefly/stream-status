@@ -517,7 +517,14 @@ async function update() {
     case 'health':     root.innerHTML = viewHealth(p);     break;
     case 'layout': {
       if (!LAYOUT_ID) { root.innerHTML = viewError(); break; }
-      const layout = (p.layouts || []).find(l => l.id === LAYOUT_ID);
+      let layout = (p.layouts || []).find(l => l.id === LAYOUT_ID);
+      // Fall back to global layouts if not found in project
+      if (!layout) {
+        try {
+          const gr = await fetch(`/api/layouts/${encodeURIComponent(LAYOUT_ID)}`);
+          if (gr.ok) layout = await gr.json();
+        } catch {}
+      }
       if (!layout) {
         root.innerHTML = `<div class="panel view-error">Layout "${esc(LAYOUT_ID)}" not found</div>`;
         break;

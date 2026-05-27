@@ -1232,6 +1232,49 @@ textarea { resize: vertical; }
 .lb-mode-freeform { background: rgba(37,99,235,0.18); color: #60a5fa; }
 .lb-mode-zones    { background: rgba(124,58,237,0.18); color: #a78bfa; }
 
+/* Global layout badge + row indicator */
+.lb-global-badge {
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: var(--radius-pill);
+  background: rgba(16,185,129,0.15);
+  color: #34d399;
+  letter-spacing: 0.04em;
+}
+.lb-row-global {
+  border-color: rgba(16,185,129,0.3);
+  background: rgba(16,185,129,0.04);
+}
+
+/* List group headings */
+.lb-list-group-label {
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-faint);
+  padding: 8px 0 4px;
+  margin-top: 8px;
+}
+.lb-list-group-label:first-child { margin-top: 0; }
+.lb-list-group-label--global { color: #34d399; }
+
+/* "Make global" toggle in editor header */
+.lb-global-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.lb-global-toggle-label {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
 /* ── Editor shell ───────────────────────────────────────────────── */
 .lb-editor {
   display: flex;
