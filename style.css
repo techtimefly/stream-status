@@ -1303,8 +1303,8 @@ textarea { resize: vertical; }
 /* ── Editor body ────────────────────────────────────────────────── */
 .lb-editor-body {
   display: grid;
-  grid-template-columns: 180px 1fr 270px;
-  min-height: 700px;
+  grid-template-columns: 160px 1fr 200px;
+  min-height: 480px;
 }
 
 /* ── Palette (left column) ──────────────────────────────────────── */
@@ -1433,8 +1433,8 @@ textarea { resize: vertical; }
 }
 .lb-wbox:hover     { border-color: rgba(96,165,250,0.9); }
 .lb-wbox.selected  { border-width: 2px; box-shadow: 0 0 0 2px rgba(96,165,250,0.3); }
-.lb-wbox-label     { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; text-align: center; }
-.lb-wbox-size      { font-size: 10px; color: rgba(255,255,255,0.35); }
+.lb-wbox-label     { font-size: 14px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; text-align: center; }
+.lb-wbox-size      { font-size: 11px; color: rgba(255,255,255,0.35); }
 .lb-wbox-delete {
   position: absolute; top: -10px; right: -10px;
   width: 20px; height: 20px;
@@ -1682,7 +1682,7 @@ textarea { resize: vertical; }
 
 /* ── Responsive ─────────────────────────────────────────────────── */
 @media (max-width: 900px) {
-  .lb-editor-body { grid-template-columns: 150px 1fr; }
+  .lb-editor-body { grid-template-columns: 130px 1fr; }
   .lb-inspector { display: none; }
 }
 @media (max-width: 640px) {
