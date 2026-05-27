@@ -503,15 +503,18 @@ function lbRenderFreeformCanvas(canvas) {
     const deleteBtn = sel
       ? `<button class="lb-wbox-delete" data-wid="${w.id}" title="Remove widget">✕</button>` : '';
 
-    const opacity  = w.params?.opacity != null ? w.params.opacity / 100 : 1;
-    const bgTag    = w.params?.showBg ? `<span class="lb-wbox-bg-tag">BG</span>` : '';
+    const opacity   = w.params?.opacity != null ? w.params.opacity / 100 : 1;
+    const bgTag     = w.params?.showBg ? `<span class="lb-wbox-bg-tag">BG</span>` : '';
+    // Scale font sizes up so they appear readable at the canvas display scale
+    const labelPx   = Math.round(13 / lbScale);
+    const metaPx    = Math.round(10 / lbScale);
 
     return `
       <div class="lb-wbox${sel ? ' selected' : ''}" data-wid="${w.id}"
            style="left:${w.x}px;top:${w.y}px;width:${w.w}px;height:${w.h}px;
                   border-color:${color}${sel ? '' : '77'};opacity:${opacity}">
-        <span class="lb-wbox-label" style="color:${color}">${def.label || w.view}</span>
-        <span class="lb-wbox-size">${w.w}×${w.h}</span>
+        <span class="lb-wbox-label" style="color:${color};font-size:${labelPx}px">${def.label || w.view}</span>
+        <span class="lb-wbox-size" style="font-size:${metaPx}px">${w.w}×${w.h}</span>
         ${bgTag}
         ${deleteBtn}
         ${handles}
@@ -600,6 +603,11 @@ function lbRemoveZoneWidget(zoneId, widgetId) {
 }
 
 function lbRenderZoneCanvas(canvas) {
+  // Scale text sizes so they remain readable at the canvas display scale
+  const chipPx  = Math.round(11 / lbScale);
+  const labelPx = Math.round(9  / lbScale);
+  const hintPx  = Math.round(10 / lbScale);
+
   canvas.innerHTML = (lbEditing.zones || []).map(zone => {
     const sel      = lbSelected === zone.id;
     const widgets  = (zone.widgets || []).map(zw => {
@@ -607,22 +615,22 @@ function lbRenderZoneCanvas(canvas) {
       const color = def.color || '#334155';
       return `
         <div class="lb-zone-chip" data-zone-id="${zone.id}" data-zwid="${zw.id}"
-             style="border-color:${color}66;background:${color}22;">
+             style="border-color:${color}66;background:${color}22;font-size:${chipPx}px">
           <span style="color:${color}">${def.label || zw.view}</span>
           <button class="lb-zone-chip-del" data-zone-id="${zone.id}" data-zwid="${zw.id}"
-                  title="Remove">✕</button>
+                  title="Remove" style="font-size:${Math.round(9/lbScale)}px">✕</button>
         </div>`;
     }).join('');
 
     const dropHint = !zone.widgets?.length
-      ? `<span class="lb-zone-drop-hint">Drop widget here</span>` : '';
+      ? `<span class="lb-zone-drop-hint" style="font-size:${hintPx}px">Drop widget here</span>` : '';
 
     return `
       <div class="lb-zone-box${sel ? ' selected' : ''}" data-zone-id="${zone.id}"
            style="left:${zone.x}px;top:${zone.y}px;width:${zone.w}px;height:${zone.h}px;
                   flex-direction:${zone.direction || 'row'};gap:${zone.gap || 0}px;
                   align-items:${zone.align || 'flex-start'};">
-        <div class="lb-zone-label">${esc(zone.label)}</div>
+        <div class="lb-zone-label" style="font-size:${labelPx}px">${esc(zone.label)}</div>
         ${widgets}
         ${dropHint}
       </div>`;
