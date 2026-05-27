@@ -566,6 +566,30 @@ body[data-view="setup"] #view-setup { display: block; }
   margin-top: 20px;
 }
 
+/* Footer row inside a setup panel (e.g. Reset progress) */
+.setup-panel-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+.setup-panel-footer > div { min-width: 0; }
+.setup-footer-label {
+  font-size: 0.92rem;
+  font-weight: 600;
+  margin: 0 0 4px;
+  color: var(--text);
+}
+.setup-footer-hint {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  margin: 0;
+  max-width: 520px;
+}
+
 /* ══════════════════════════════════════════════════════════════════
    SHARED COMPONENTS  (badges / pickers — unchanged from before)
    ══════════════════════════════════════════════════════════════════ */

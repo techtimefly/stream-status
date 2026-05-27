@@ -1483,6 +1483,24 @@ function bindEvents() {
     document.getElementById('obs-settings-btn').click();
   });
 
+  /* Setup view — reset project progress (for testing) */
+  document.getElementById('reset-progress-btn')?.addEventListener('click', async () => {
+    if (!project) return;
+    if (!confirm('Reset all segments to not-done, uncheck all tasks, clear the live timer and highlights?\n\nProject details, segments, tasks, and notes are preserved.')) return;
+    (project.segments || []).forEach(s => { s.done = false; s.doneAt = null; });
+    (project.tasks    || []).forEach(t => { t.completed = false; t.completedAt = null; });
+    project.liveStartedAt          = null;
+    project.streamStartedAt        = null;
+    project.obsTimerPausedDuration = 0;
+    project.obsBrbPausedAt         = null;
+    project.highlights             = [];
+    activeSegmentKey               = null;
+    stopTimerTick();
+    await saveProject();
+    render();
+    showToast('Progress reset');
+  });
+
   /* Live view — mark current segment done */
   document.getElementById('live-mark-done-btn')?.addEventListener('click', async () => {
     const segs    = project?.segments || [];
