@@ -1,4 +1,4 @@
-/* v2 — universal active-project support */
+/* v3 — layout builder support */
 const params      = new URLSearchParams(location.search);
 const VIEW        = params.get('view')       || 'segments';
 const BG          = params.get('bg')         || 'transparent';
@@ -7,6 +7,7 @@ const SIZE        = params.get('size')       || 'md';
 const POLL_S      = Math.max(3, parseInt(params.get('poll') || '5', 10));
 const TRANSITION  = params.get('transition') || 'slide';
 const SHOW_S      = params.get('show') ? Math.max(1, parseInt(params.get('show'), 10)) : null;
+const LAYOUT_ID   = params.get('layout')     || '';
 
 if (BG === 'green')   document.body.classList.add('bg-green');
 if (BG === 'magenta') document.body.classList.add('bg-magenta');
@@ -352,6 +353,66 @@ function viewError() {
   return `<div class="panel view-error">No project loaded</div>`;
 }
 
+/* ── Layout renderer ────────────────────────────────────────────── */
+
+/** Dispatch a view name → HTML string using the existing view functions. */
+function renderWidgetHtml(view, p) {
+  switch (view) {
+    case 'segments':   return viewSegments(p);
+    case 'tasks':      return viewTasks(p);
+    case 'current':    return viewCurrent(p);
+    case 'progress':   return viewProgress(p);
+    case 'timer':      return viewTimer(p);
+    case 'countdown':  return viewCountdown(p);
+    case 'social':     return viewSocial(p);
+    case 'transition': return viewTransition(p);
+    case 'done':       return viewDone(p);
+    case 'lowerthird': return viewLowerThird(p);
+    case 'health':     return viewHealth(p);
+    default: return `<div class="panel view-error">${esc(view)}</div>`;
+  }
+}
+
+/** First-render: set canvas dimensions and build all widget containers. */
+function buildLayoutStructure(p, layout) {
+  const root = document.getElementById('overlay-root');
+  root.style.cssText =
+    `position:relative;width:${layout.canvasW}px;height:${layout.canvasH}px;` +
+    `overflow:hidden;padding:0;display:block;`;
+
+  if (layout.mode === 'zones') {
+    root.innerHTML = (layout.zones || []).map(zone => {
+      const zStyle =
+        `position:absolute;left:${zone.x}px;top:${zone.y}px;` +
+        `width:${zone.w}px;height:${zone.h}px;display:flex;` +
+        `flex-direction:${zone.direction || 'row'};gap:${zone.gap || 0}px;` +
+        `align-items:${zone.align || 'flex-start'};overflow:hidden;box-sizing:border-box;`;
+      const widgets = (zone.widgets || []).map((zw, i) =>
+        `<div class="lz-w" data-lview="${zone.id}-${i}" data-view="${zw.view}">` +
+        renderWidgetHtml(zw.view, p) + `</div>`
+      ).join('');
+      return `<div style="${zStyle}">${widgets}</div>`;
+    }).join('');
+  } else {
+    root.innerHTML = (layout.widgets || []).map(w =>
+      `<div class="lf-w" data-lview="${w.id}" data-view="${w.view}" ` +
+      `style="position:absolute;left:${w.x}px;top:${w.y}px;` +
+      `width:${w.w}px;height:${w.h}px;overflow:hidden;">` +
+      renderWidgetHtml(w.view, p) + `</div>`
+    ).join('');
+  }
+}
+
+/** Subsequent polls: update each widget's innerHTML in-place (preserves LT animation). */
+function updateLayoutInPlace(p, skipLt) {
+  const root = document.getElementById('overlay-root');
+  root.querySelectorAll('[data-lview]').forEach(el => {
+    const view = el.dataset.view;
+    if (view === 'lowerthird' && skipLt) return;
+    el.innerHTML = renderWidgetHtml(view, p);
+  });
+}
+
 /* ── Tick handles ───────────────────────────────────────────────── */
 let cachedProject       = null;
 let timerTickHandle     = null;
@@ -423,6 +484,37 @@ async function update() {
       break;
     }
     case 'health':     root.innerHTML = viewHealth(p);     break;
+    case 'layout': {
+      if (!LAYOUT_ID) { root.innerHTML = viewError(); break; }
+      const layout = (p.layouts || []).find(l => l.id === LAYOUT_ID);
+      if (!layout) {
+        root.innerHTML = `<div class="panel view-error">Layout "${esc(LAYOUT_ID)}" not found</div>`;
+        break;
+      }
+
+      const intervalMs = Math.max(3, parseInt(params.get('interval') || '8', 10)) * 1000;
+      const curSegKey  = ((p.segments || []).find(s => !s.done))?.key ?? null;
+      const ltChanged  = curSegKey !== ltSegKey || !ltTickHandle;
+
+      if (!root.dataset.lbReady) {
+        // First render — build full canvas structure
+        root.dataset.lbReady = '1';
+        buildLayoutStructure(p, layout);
+        startLtTick(p, intervalMs);
+      } else {
+        // Subsequent polls — update widgets in-place, preserve LT animation
+        updateLayoutInPlace(p, !ltChanged);
+        if (ltChanged) startLtTick(p, intervalMs);
+      }
+
+      // Timer tick
+      if (p.liveStartedAt) startTimerTick(); else clearInterval(timerTickHandle);
+      // Countdown tick
+      if (p.countdownTo && new Date(p.countdownTo).getTime() > Date.now())
+        startCountdownTick();
+      else clearInterval(countdownTickHandle);
+      break;
+    }
     default: root.innerHTML = viewSegments(p); break;
   }
 }

@@ -139,6 +139,62 @@ def update_project(project_id):
     return jsonify(body)
 
 
+@app.route('/api/projects/<project_id>/layouts', methods=['GET'])
+def list_layouts(project_id):
+    return jsonify(_read(project_id).get('layouts', []))
+
+
+@app.route('/api/projects/<project_id>/layouts', methods=['POST'])
+def create_layout(project_id):
+    body = request.get_json(silent=True)
+    if not body or not body.get('id'):
+        abort(400)
+    project = _read(project_id)
+    project.setdefault('layouts', [])
+    # Remove existing layout with same id (upsert)
+    project['layouts'] = [l for l in project['layouts'] if l.get('id') != body['id']]
+    project['layouts'].append(body)
+    project['updatedAt'] = _now()
+    _write(project)
+    return jsonify(body), 201
+
+
+@app.route('/api/projects/<project_id>/layouts/<layout_id>', methods=['GET'])
+def get_layout(project_id, layout_id):
+    layouts = _read(project_id).get('layouts', [])
+    layout  = next((l for l in layouts if l.get('id') == layout_id), None)
+    if not layout:
+        abort(404)
+    return jsonify(layout)
+
+
+@app.route('/api/projects/<project_id>/layouts/<layout_id>', methods=['PUT'])
+def update_layout(project_id, layout_id):
+    body    = request.get_json(silent=True)
+    if not body:
+        abort(400)
+    project = _read(project_id)
+    project.setdefault('layouts', [])
+    idx = next((i for i, l in enumerate(project['layouts']) if l.get('id') == layout_id), None)
+    body['id'] = layout_id
+    if idx is not None:
+        project['layouts'][idx] = body
+    else:
+        project['layouts'].append(body)
+    project['updatedAt'] = _now()
+    _write(project)
+    return jsonify(body)
+
+
+@app.route('/api/projects/<project_id>/layouts/<layout_id>', methods=['DELETE'])
+def delete_layout(project_id, layout_id):
+    project = _read(project_id)
+    project['layouts'] = [l for l in project.get('layouts', []) if l.get('id') != layout_id]
+    project['updatedAt'] = _now()
+    _write(project)
+    return '', 204
+
+
 @app.route('/api/projects/<project_id>/obs-stats', methods=['PUT'])
 def update_obs_stats(project_id):
     existing = _read(project_id)

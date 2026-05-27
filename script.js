@@ -1425,7 +1425,7 @@ function applyTheme(name) {
 
 /* ── Jump nav ────────────────────────────────────────────────────── */
 function initJumpNav() {
-  const sectionIds = ['section-segments', 'section-tasks', 'section-notes', 'section-overlays'];
+  const sectionIds = ['section-segments', 'section-tasks', 'section-notes', 'section-overlays', 'section-layouts'];
   const linkMap = {};
   sectionIds.forEach(id => {
     linkMap[id] = document.querySelector(`.jump-link[href="#${id}"]`);

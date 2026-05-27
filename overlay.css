@@ -244,3 +244,35 @@ body.size-lg    { font-size: 19px; }
 
 /* ── Error state ────────────────────────────────────────────────── */
 .view-error { width: 280px; color: #f87171; font-size: 0.88em; }
+
+/* ── Layout canvas mode ─────────────────────────────────────────── */
+/* When overlay-root becomes a layout canvas the inline-block/padding
+   are overridden by inline styles — these classes fine-tune children. */
+.lf-w,
+.lz-w {
+  /* Freeform widget (absolute) and zone widget (flex child) */
+  box-sizing: border-box;
+  overflow: hidden;
+}
+/* Zone widget: expand to fill its flex slot */
+.lz-w {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+}
+/* Make panels fill their container in layout mode */
+.lf-w .panel,
+.lz-w .panel {
+  width: 100%;
+  height: 100%;
+  border-radius: 0;
+  border: none;
+  background: transparent;
+}
+/* Lower-third: override fixed width when inside a layout */
+.lz-w .view-lowerthird,
+.lf-w .view-lowerthird { width: 100%; }
+/* Timer: fill width in zone rows */
+.lz-w .view-timer { width: 100%; }
+/* Progress: fill width */
+.lz-w .view-progress { width: 100%; }

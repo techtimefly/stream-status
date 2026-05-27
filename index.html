@@ -229,6 +229,7 @@
         <a class="jump-link" href="#section-tasks">Tasks</a>
         <a class="jump-link" href="#section-notes">Notes</a>
         <a class="jump-link" href="#section-overlays">Overlays</a>
+        <a class="jump-link" href="#section-layouts">Layouts</a>
       </nav>
 
       <main>
@@ -294,6 +295,22 @@
           </div>
           </div>
           <div id="overlay-grid" class="overlay-grid hidden"></div>
+        </section>
+        <!-- Layout builder section -->
+        <section class="lb-section" id="section-layouts">
+          <div class="lb-section-header">
+            <div>
+              <h2>Layout builder</h2>
+              <p class="panel-copy">Design multi-widget overlay layouts. Add one URL as a single OBS browser source.</p>
+            </div>
+            <div class="lb-header-btns">
+              <button id="new-layout-btn" class="btn-ghost btn-sm">+ New layout</button>
+              <button id="toggle-layouts" class="btn-ghost overlay-toggle-btn" aria-expanded="false">Show</button>
+            </div>
+          </div>
+          <div id="layout-builder-wrap" class="hidden">
+            <div id="layout-list" class="lb-list"></div>
+          </div>
         </section>
       </main>
     </div>
@@ -388,5 +405,6 @@
 
   <script src="obs-websocket.js"></script>
   <script src="script.js"></script>
+  <script src="layout-builder.js"></script>
 </body>
 </html>
