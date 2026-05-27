@@ -843,6 +843,22 @@ function lbRenderInspector() {
           </select>
         </label>
       </div>` : ''}
+      ${w.view === 'countdown' ? `
+      <div class="lb-insp-group">
+        <p class="lb-insp-subtitle">Countdown</p>
+        <label class="lb-insp-label">Duration
+          <div class="lb-insp-unit-row">
+            <input class="lb-inp" type="number" id="insp-cd-minutes"
+                   value="${w.params?.countdownMinutes ?? ''}" min="0" step="0.5" placeholder="project" />
+            <span class="lb-insp-unit">min</span>
+          </div>
+          <p class="lb-insp-hint">Set to count down from page load. Leave blank to use the project countdown target.</p>
+        </label>
+        <label class="lb-insp-label">Label
+          <input class="lb-inp" type="text" id="insp-cd-label"
+                 value="${esc(w.params?.countdownLabel ?? '')}" placeholder="Countdown" />
+        </label>
+      </div>` : ''}
       <button class="btn-ghost btn-sm lb-insp-delete">&#x2715; Remove widget</button>`;
 
     // Bind inputs
@@ -891,6 +907,20 @@ function lbRenderInspector() {
       });
       document.getElementById('insp-lt-transition')?.addEventListener('change', e => {
         (w.params ??= {}).transition = e.target.value;
+      });
+    }
+
+    // Countdown widget-specific params
+    if (w.view === 'countdown') {
+      document.getElementById('insp-cd-minutes')?.addEventListener('change', e => {
+        const val = parseFloat(e.target.value);
+        if (!val || val <= 0) { delete (w.params ??= {}).countdownMinutes; e.target.value = ''; }
+        else (w.params ??= {}).countdownMinutes = val;
+      });
+      document.getElementById('insp-cd-label')?.addEventListener('change', e => {
+        const val = e.target.value.trim();
+        if (!val) delete (w.params ??= {}).countdownLabel;
+        else (w.params ??= {}).countdownLabel = val;
       });
     }
 
@@ -949,6 +979,22 @@ function lbRenderInspector() {
             </select>
           </label>
         </div>` : ''}
+        ${zw.view === 'countdown' ? `
+        <div class="lb-insp-group">
+          <p class="lb-insp-subtitle">Countdown</p>
+          <label class="lb-insp-label">Duration
+            <div class="lb-insp-unit-row">
+              <input class="lb-inp" type="number" id="insp-cd-minutes"
+                     value="${zw.params?.countdownMinutes ?? ''}" min="0" step="0.5" placeholder="project" />
+              <span class="lb-insp-unit">min</span>
+            </div>
+            <p class="lb-insp-hint">Set to count down from page load. Leave blank to use the project countdown target.</p>
+          </label>
+          <label class="lb-insp-label">Label
+            <input class="lb-inp" type="text" id="insp-cd-label"
+                   value="${esc(zw.params?.countdownLabel ?? '')}" placeholder="Countdown" />
+          </label>
+        </div>` : ''}
         <button class="btn-ghost btn-sm lb-insp-delete">&#x2715; Remove from zone</button>`;
 
       document.getElementById('insp-showbg')?.addEventListener('change', e => {
@@ -973,6 +1019,18 @@ function lbRenderInspector() {
         });
         document.getElementById('insp-lt-transition')?.addEventListener('change', e => {
           (zw.params ??= {}).transition = e.target.value;
+        });
+      }
+      if (zw.view === 'countdown') {
+        document.getElementById('insp-cd-minutes')?.addEventListener('change', e => {
+          const val = parseFloat(e.target.value);
+          if (!val || val <= 0) { delete (zw.params ??= {}).countdownMinutes; e.target.value = ''; }
+          else (zw.params ??= {}).countdownMinutes = val;
+        });
+        document.getElementById('insp-cd-label')?.addEventListener('change', e => {
+          const val = e.target.value.trim();
+          if (!val) delete (zw.params ??= {}).countdownLabel;
+          else (zw.params ??= {}).countdownLabel = val;
         });
       }
       el.querySelector('.lb-insp-delete')?.addEventListener('click', () => {

@@ -1,4 +1,6 @@
 /* v3 — layout builder support */
+const PAGE_LOAD_MS = Date.now();           // Frozen at load — base for custom countdown durations
+const widgetCountdownTargets = {};         // widgetId → epoch ms, computed once per session
 const params      = new URLSearchParams(location.search);
 const VIEW        = params.get('view')       || 'segments';
 const BG          = params.get('bg')         || 'transparent';
@@ -180,21 +182,22 @@ function viewHealth(p) {
     </div>`;
 }
 
-function viewCountdown(p) {
-  if (!p.countdownTo) {
+function viewCountdown(p, widgetId = 'default', targetMs = null) {
+  const target = targetMs ?? (p.countdownTo ? new Date(p.countdownTo).getTime() : null);
+  if (!target) {
     return `
       <div class="panel view-countdown">
         <div class="cd-label">Countdown</div>
-        <div class="cd-time cd-inactive">--:--</div>
+        <div class="cd-time cd-inactive" data-cd-clock="${widgetId}">--:--</div>
       </div>`;
   }
-  const remaining = new Date(p.countdownTo).getTime() - Date.now();
+  const remaining = target - Date.now();
   const label     = p.countdownLabel || 'Countdown';
   const expired   = remaining <= 0;
   return `
     <div class="panel view-countdown${expired ? ' expired' : ''}">
       <div class="cd-label">${esc(label)}</div>
-      <div class="cd-time" id="cd-clock">${expired ? "Time's up!" : formatRemaining(remaining)}</div>
+      <div class="cd-time" data-cd-clock="${widgetId}">${expired ? "Time's up!" : formatRemaining(remaining)}</div>
     </div>`;
 }
 
@@ -355,15 +358,30 @@ function viewError() {
 
 /* ── Layout renderer ────────────────────────────────────────────── */
 
-/** Dispatch a view name → HTML string using the existing view functions. */
-function renderWidgetHtml(view, p) {
+/** Dispatch a view name → HTML string using the existing view functions.
+ *  wparams = widget-level params object (from layout builder); wid = stable widget ID. */
+function renderWidgetHtml(view, p, wparams, wid) {
   switch (view) {
     case 'segments':   return viewSegments(p);
     case 'tasks':      return viewTasks(p);
     case 'current':    return viewCurrent(p);
     case 'progress':   return viewProgress(p);
     case 'timer':      return viewTimer(p);
-    case 'countdown':  return viewCountdown(p);
+    case 'countdown': {
+      // Widget-level duration override: compute target once at page load, cache it
+      let targetMs = null;
+      if (wparams?.countdownMinutes > 0) {
+        const key = wid || 'default';
+        if (!widgetCountdownTargets[key])
+          widgetCountdownTargets[key] = PAGE_LOAD_MS + wparams.countdownMinutes * 60000;
+        targetMs = widgetCountdownTargets[key];
+      }
+      // Allow widget-level label override
+      const pWithLabel = wparams?.countdownLabel
+        ? { ...p, countdownLabel: wparams.countdownLabel }
+        : p;
+      return viewCountdown(pWithLabel, wid || 'default', targetMs);
+    }
     case 'social':     return viewSocial(p);
     case 'transition': return viewTransition(p);
     case 'done':       return viewDone(p);
@@ -394,7 +412,7 @@ function buildLayoutStructure(p, layout) {
         return `<div class="lz-w${bgCls}" data-lview="${zone.id}-${i}" ` +
           `data-view="${zw.view}" data-zwid="${zw.id}"` +
           (opacSty ? ` style="${opacSty}"` : '') + `>` +
-          renderWidgetHtml(zw.view, p) + `</div>`;
+          renderWidgetHtml(zw.view, p, zw.params, zw.id) + `</div>`;
       }).join('');
       return `<div style="${zStyle}">${widgets}</div>`;
     }).join('');
@@ -406,7 +424,7 @@ function buildLayoutStructure(p, layout) {
       return `<div class="lf-w${bgCls}" data-lview="${w.id}" data-view="${w.view}" ` +
         `style="position:absolute;left:${w.x}px;top:${w.y}px;` +
         `width:${w.w}px;height:${w.h}px;overflow:hidden${opacSty};">` +
-        renderWidgetHtml(w.view, p) + `</div>`;
+        renderWidgetHtml(w.view, p, w.params, w.id) + `</div>`;
     }).join('');
   }
 }
@@ -418,28 +436,30 @@ function updateLayoutInPlace(p, skipLt) {
   root.querySelectorAll('[data-lview]').forEach(el => {
     const view = el.dataset.view;
     if (view === 'lowerthird' && skipLt) return;
-    el.innerHTML = renderWidgetHtml(view, p);
 
     // Re-sync appearance params (freeform)
     if (el.classList.contains('lf-w') && layout) {
       const w = (layout.widgets || []).find(w => w.id === el.dataset.lview);
+      el.innerHTML = renderWidgetHtml(view, p, w?.params, w?.id);
       if (w) {
         el.classList.toggle('has-bg', !!w.params?.showBg);
         const opacPct = w.params?.opacity;
         el.style.opacity = opacPct != null && opacPct < 100 ? String(opacPct / 100) : '';
       }
-    }
-    // Re-sync appearance params (zone widgets)
-    if (el.classList.contains('lz-w') && layout) {
+    } else if (el.classList.contains('lz-w') && layout) {
+      // Re-sync appearance params (zone widgets)
       const zwid = el.dataset.zwid;
       const zw   = zwid
         ? (layout.zones || []).flatMap(z => z.widgets || []).find(w => w.id === zwid)
         : null;
+      el.innerHTML = renderWidgetHtml(view, p, zw?.params, zw?.id);
       if (zw) {
         el.classList.toggle('has-bg', !!zw.params?.showBg);
         const opacPct = zw.params?.opacity;
         el.style.opacity = opacPct != null && opacPct < 100 ? String(opacPct / 100) : '';
       }
+    } else {
+      el.innerHTML = renderWidgetHtml(view, p);
     }
   });
 }
@@ -464,16 +484,25 @@ function startTimerTick() {
 function startCountdownTick() {
   clearInterval(countdownTickHandle);
   countdownTickHandle = setInterval(() => {
-    const el = document.getElementById('cd-clock');
-    if (!el || !cachedProject?.countdownTo) { clearInterval(countdownTickHandle); return; }
-    const remaining = new Date(cachedProject.countdownTo).getTime() - Date.now();
-    if (remaining <= 0) {
-      el.textContent = "Time's up!";
-      el.closest('.panel')?.classList.add('expired');
-      clearInterval(countdownTickHandle);
-    } else {
-      el.textContent = formatRemaining(remaining);
-    }
+    const clocks = document.querySelectorAll('[data-cd-clock]');
+    if (!clocks.length) { clearInterval(countdownTickHandle); return; }
+    let anyActive = false;
+    clocks.forEach(el => {
+      const wid    = el.dataset.cdClock;
+      // Widget-level target (from page-load duration) takes priority over project countdownTo
+      const target = widgetCountdownTargets[wid]
+                  ?? (cachedProject?.countdownTo ? new Date(cachedProject.countdownTo).getTime() : null);
+      if (!target) return;
+      const remaining = target - Date.now();
+      if (remaining <= 0) {
+        el.textContent = "Time's up!";
+        el.closest('.panel')?.classList.add('expired');
+      } else {
+        anyActive = true;
+        el.textContent = formatRemaining(remaining);
+      }
+    });
+    if (!anyActive) clearInterval(countdownTickHandle);
   }, 1000);
 }
 
@@ -501,12 +530,22 @@ async function update() {
       root.innerHTML = viewTimer(p);
       if (p.liveStartedAt) startTimerTick(); else clearInterval(timerTickHandle);
       break;
-    case 'countdown':
-      root.innerHTML = viewCountdown(p);
-      if (p.countdownTo && new Date(p.countdownTo).getTime() > Date.now())
-        startCountdownTick();
-      else clearInterval(countdownTickHandle);
+    case 'countdown': {
+      // Standalone overlay: ?countdownMinutes=N counts from page load
+      const paramMins = parseFloat(params.get('countdownMinutes') || '0');
+      let targetMs = null;
+      if (paramMins > 0) {
+        if (!widgetCountdownTargets['standalone'])
+          widgetCountdownTargets['standalone'] = PAGE_LOAD_MS + paramMins * 60000;
+        targetMs = widgetCountdownTargets['standalone'];
+      }
+      const standaloneLabel = params.get('countdownLabel') || undefined;
+      const pStandalone = standaloneLabel ? { ...p, countdownLabel: standaloneLabel } : p;
+      root.innerHTML = viewCountdown(pStandalone, 'standalone', targetMs);
+      const hasTarget = targetMs != null || (p.countdownTo && new Date(p.countdownTo).getTime() > Date.now());
+      if (hasTarget) startCountdownTick(); else clearInterval(countdownTickHandle);
       break;
+    }
     case 'lowerthird': {
       const intervalMs = Math.max(3, parseInt(params.get('interval') || '8', 10)) * 1000;
       const curSegKey  = ((p.segments || []).find(s => !s.done))?.key ?? null;
@@ -547,9 +586,8 @@ async function update() {
 
       // Timer tick
       if (p.liveStartedAt) startTimerTick(); else clearInterval(timerTickHandle);
-      // Countdown tick
-      if (p.countdownTo && new Date(p.countdownTo).getTime() > Date.now())
-        startCountdownTick();
+      // Countdown tick — start if any countdown widget is present in the layout
+      if (document.querySelector('[data-cd-clock]')) startCountdownTick();
       else clearInterval(countdownTickHandle);
       break;
     }
