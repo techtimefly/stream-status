@@ -8,6 +8,10 @@
 </head>
 <body>
 
+  <!-- ════════════════════════════════════════════════════════════════
+       MODALS — global, available from any view
+       ════════════════════════════════════════════════════════════════ -->
+
   <!-- Project manager modal -->
   <div id="project-modal" class="modal hidden">
     <div class="modal-backdrop"></div>
@@ -139,183 +143,6 @@
     </div>
   </div>
 
-  <!-- Auto-save toast -->
-  <div id="save-toast" class="save-toast">&#x2713; Saved</div>
-
-  <!-- Sticky now-live bar -->
-  <div id="sticky-bar" class="sticky-bar">
-    <div class="sticky-left">
-      <span class="sticky-eyebrow">Now</span>
-      <span id="sticky-segment" class="sticky-segment">–</span>
-    </div>
-    <span id="sticky-timer" class="sticky-timer">–</span>
-    <span id="sticky-tasks" class="sticky-tasks">–</span>
-  </div>
-
-  <div class="app-shell">
-    <div id="loading-state" class="loading-state">
-      <p>Loading&#8230;</p>
-    </div>
-
-    <div id="empty-state" class="empty-state hidden">
-      <p class="eyebrow">Stream Status</p>
-      <h1>No projects yet</h1>
-      <p>Create a project to track stream segments and tasks for any topic or stream.</p>
-      <button id="create-first-project" class="btn-primary">Create first project</button>
-    </div>
-
-    <div id="main-app" class="hidden">
-      <header class="hero">
-        <!-- Title row: full width, actions pinned right -->
-        <div class="hero-title-row">
-          <div>
-            <p class="eyebrow">Live Stream Status</p>
-            <h1 id="project-title">&#8211;</h1>
-            <p class="subtitle" id="project-description"></p>
-          </div>
-          <div class="hero-actions">
-            <div class="obs-status-wrap">
-              <button id="obs-settings-btn" class="obs-status-badge" data-status="disconnected" title="OBS WebSocket settings">
-                <span class="obs-status-dot"></span>
-                <span class="obs-status-label">OBS</span>
-              </button>
-            </div>
-            <div class="theme-picker" id="theme-picker">
-              <button class="theme-dot active" data-theme="teal"   title="Teal"></button>
-              <button class="theme-dot"        data-theme="purple" title="Purple"></button>
-              <button class="theme-dot"        data-theme="orange" title="Orange"></button>
-              <button class="theme-dot"        data-theme="blue"   title="Blue"></button>
-              <button class="theme-dot"        data-theme="red"    title="Red"></button>
-            </div>
-            <button id="switch-project-btn" class="btn-secondary">Switch project</button>
-            <button id="edit-project-btn" class="btn-ghost">Edit</button>
-          </div>
-        </div>
-        <!-- Cards row: focus | timer | countdown -->
-        <div class="hero-cards-row">
-          <div class="hero-card">
-            <div class="hero-card-row">
-              <span>Current Focus</span>
-              <strong id="project-focus">&#8211;</strong>
-            </div>
-            <div class="hero-card-row">
-              <span>Platform</span>
-              <strong id="project-platform">&#8211;</strong>
-            </div>
-          </div>
-          <div class="hero-card hero-timer-card">
-            <div id="timer-display" class="timer-display">&#8211;&#8211;:&#8211;&#8211;:&#8211;&#8211;</div>
-            <div class="timer-btns">
-              <button id="go-live-btn" class="go-live-btn">&#9654; Go Live</button>
-              <button id="writeup-btn" class="btn-ghost btn-sm hidden">✦ Write-up</button>
-              <button id="chapters-btn" class="btn-ghost btn-sm hidden">⊞ Chapters</button>
-            </div>
-          </div>
-          <div class="hero-card hero-countdown-card">
-            <div class="countdown-info">
-              <span id="countdown-label-display" class="countdown-label">Countdown</span>
-              <span id="countdown-display" class="countdown-time">&#8211;</span>
-            </div>
-            <div class="countdown-btns">
-              <button id="set-countdown-btn" class="btn-ghost btn-sm">Set</button>
-              <button id="clear-countdown-btn" class="icon-btn hidden" title="Clear countdown">&#x2715;</button>
-            </div>
-          </div>
-        </div>
-      </header>
-
-      <nav class="jump-nav" id="jump-nav">
-        <a class="jump-link" href="#section-segments">Segments</a>
-        <a class="jump-link" href="#section-tasks">Tasks</a>
-        <a class="jump-link" href="#section-notes">Notes</a>
-        <a class="jump-link" href="#section-overlays">Overlays</a>
-        <a class="jump-link" href="#section-layouts">Layouts</a>
-      </nav>
-
-      <main>
-        <section class="section-grid" id="section-grid">
-          <article class="panel" id="section-segments">
-            <div class="panel-header-row">
-              <div>
-                <h2>Stream segments</h2>
-                <p class="panel-copy">Mark segments done as you move through the stream.</p>
-              </div>
-              <button id="add-segment-btn" class="btn-ghost">+ Segment</button>
-            </div>
-            <div class="segments" id="segment-list"></div>
-          </article>
-
-          <article class="panel panel-tasks" id="section-tasks">
-            <div class="panel-header">
-              <div>
-                <h2>Task list</h2>
-                <p class="panel-copy">Track stream tasks and your build checklist.</p>
-              </div>
-              <div class="task-controls">
-                <button id="filter-all" class="filter active">All</button>
-                <button id="filter-active" class="filter">Open</button>
-                <button id="filter-completed" class="filter">Done</button>
-              </div>
-            </div>
-            <div class="add-task">
-              <input id="new-task" type="text" placeholder="Add stream task" />
-              <button id="add-task-button">Add</button>
-            </div>
-            <div id="task-list" class="task-list"></div>
-            <div class="task-footer">
-              <span id="task-count">0 tasks</span>
-              <button id="clear-completed">Clear completed</button>
-            </div>
-          </article>
-        </section>
-
-        <!-- Notes panel -->
-        <section class="panel panel-notes" id="section-notes">
-          <div class="notes-header">
-            <h2>Stream notes</h2>
-            <span id="notes-indicator" class="notes-indicator"></span>
-          </div>
-          <textarea
-            id="notes-textarea"
-            class="notes-textarea"
-            placeholder="Stream notes, reference IPs, commands, talking points&#8230;"
-          ></textarea>
-        </section>
-
-        <!-- Overlay sources section -->
-        <section class="overlay-section" id="section-overlays">
-          <div class="overlay-section-header">
-            <div>
-              <h2>OBS overlay sources</h2>
-              <p class="panel-copy">Add these as Browser Sources in OBS. Check <strong>Allow transparency</strong> in each source, or append <code>&amp;bg=green</code> / <code>&amp;bg=magenta</code> for chroma key.</p>
-            </div>
-            <div class="overlay-header-btns">
-            <button id="overlay-mode-btn" class="btn-ghost btn-sm" title="Switch to URLs pinned to this project">Pinned</button>
-            <button id="toggle-overlays" class="btn-ghost overlay-toggle-btn" aria-expanded="false">Show</button>
-          </div>
-          </div>
-          <div id="overlay-grid" class="overlay-grid hidden"></div>
-        </section>
-        <!-- Layout builder section -->
-        <section class="lb-section" id="section-layouts">
-          <div class="lb-section-header">
-            <div>
-              <h2>Layout builder</h2>
-              <p class="panel-copy">Design multi-widget overlay layouts. Add one URL as a single OBS browser source.</p>
-            </div>
-            <div class="lb-header-btns">
-              <button id="new-layout-btn" class="btn-ghost btn-sm">+ New layout</button>
-              <button id="toggle-layouts" class="btn-ghost overlay-toggle-btn" aria-expanded="false">Show</button>
-            </div>
-          </div>
-          <div id="layout-builder-wrap" class="hidden">
-            <div id="layout-list" class="lb-list"></div>
-          </div>
-        </section>
-      </main>
-    </div>
-  </div>
-
   <!-- Segment plan preview modal -->
   <div id="segment-plan-modal" class="modal hidden">
     <div class="modal-backdrop" data-modal="segment-plan-modal"></div>
@@ -400,6 +227,278 @@
         </div>
       </form>
       <div id="obs-connection-detail" class="obs-connection-detail"></div>
+    </div>
+  </div>
+
+  <!-- Auto-save toast -->
+  <div id="save-toast" class="save-toast">&#x2713; Saved</div>
+
+  <!-- ════════════════════════════════════════════════════════════════
+       SHELL
+       ════════════════════════════════════════════════════════════════ -->
+
+  <div class="app-shell">
+
+    <div id="loading-state" class="loading-state">
+      <p>Loading&#8230;</p>
+    </div>
+
+    <div id="empty-state" class="empty-state hidden">
+      <p class="eyebrow">Stream Status</p>
+      <h1>No projects yet</h1>
+      <p>Create a project to track stream segments and tasks for any topic or stream.</p>
+      <button id="create-first-project" class="btn-primary">Create first project</button>
+    </div>
+
+    <div id="main-app" class="hidden">
+
+      <!-- Global header strip -->
+      <header class="app-header">
+        <div class="app-header-left">
+          <button id="switch-project-btn" class="project-chip" title="Switch project">
+            <span class="project-chip-name" id="project-title">&#8211;</span>
+            <span class="project-chip-caret">&#9662;</span>
+          </button>
+        </div>
+        <nav class="tab-nav" id="tab-nav">
+          <a class="tab-link" data-view="plan"  href="#">Plan</a>
+          <a class="tab-link" data-view="live"  href="#">Live</a>
+          <a class="tab-link" data-view="setup" href="#">Setup</a>
+        </nav>
+        <div class="app-header-right">
+          <button id="obs-settings-btn" class="obs-status-badge" data-status="disconnected" title="OBS WebSocket settings">
+            <span class="obs-status-dot"></span>
+            <span class="obs-status-label">OBS</span>
+          </button>
+          <div class="theme-picker" id="theme-picker">
+            <button class="theme-dot active" data-theme="teal"   title="Teal"></button>
+            <button class="theme-dot"        data-theme="purple" title="Purple"></button>
+            <button class="theme-dot"        data-theme="orange" title="Orange"></button>
+            <button class="theme-dot"        data-theme="blue"   title="Blue"></button>
+            <button class="theme-dot"        data-theme="red"    title="Red"></button>
+          </div>
+        </div>
+      </header>
+
+      <!-- Slim live strip (visible on Plan/Setup when stream is live) -->
+      <div id="live-strip" class="live-strip">
+        <div class="live-strip-left">
+          <span class="live-strip-eyebrow">Now</span>
+          <span id="sticky-segment" class="live-strip-segment">&#8211;</span>
+        </div>
+        <span id="sticky-timer" class="live-strip-timer">&#8211;</span>
+        <span id="sticky-tasks" class="live-strip-tasks">&#8211;</span>
+      </div>
+
+      <!-- ════════════ PLAN VIEW ════════════ -->
+      <main id="view-plan" class="view">
+        <header class="plan-hero">
+          <p class="eyebrow">Stream prep</p>
+          <h1 id="plan-project-title">&#8211;</h1>
+          <p class="subtitle" id="project-description"></p>
+          <div class="plan-meta-row">
+            <div class="plan-meta-cell">
+              <span>Focus</span>
+              <strong id="project-focus">&#8211;</strong>
+            </div>
+            <div class="plan-meta-cell">
+              <span>Platform</span>
+              <strong id="project-platform">&#8211;</strong>
+            </div>
+            <div class="plan-meta-cell plan-meta-countdown">
+              <span id="countdown-label-display">Countdown</span>
+              <strong id="countdown-display">&#8211;</strong>
+              <div class="plan-meta-actions">
+                <button id="set-countdown-btn" class="btn-ghost btn-sm">Set</button>
+                <button id="clear-countdown-btn" class="icon-btn hidden" title="Clear countdown">&#x2715;</button>
+              </div>
+            </div>
+          </div>
+        </header>
+
+        <section class="section-grid" id="section-grid">
+          <article class="panel" id="section-segments">
+            <div class="panel-header-row">
+              <div>
+                <h2>Stream segments</h2>
+                <p class="panel-copy">Mark segments done as you move through the stream.</p>
+              </div>
+              <button id="add-segment-btn" class="btn-ghost">+ Segment</button>
+            </div>
+            <div class="segments" id="segment-list"></div>
+          </article>
+
+          <article class="panel panel-tasks" id="section-tasks">
+            <div class="panel-header">
+              <div>
+                <h2>Task list</h2>
+                <p class="panel-copy">Track stream tasks and your build checklist.</p>
+              </div>
+              <div class="task-controls">
+                <button id="filter-all" class="filter active">All</button>
+                <button id="filter-active" class="filter">Open</button>
+                <button id="filter-completed" class="filter">Done</button>
+              </div>
+            </div>
+            <div class="add-task">
+              <input id="new-task" type="text" placeholder="Add stream task" />
+              <button id="add-task-button">Add</button>
+            </div>
+            <div id="task-list" class="task-list"></div>
+            <div class="task-footer">
+              <span id="task-count">0 tasks</span>
+              <button id="clear-completed">Clear completed</button>
+            </div>
+          </article>
+        </section>
+
+        <section class="panel panel-notes" id="section-notes">
+          <div class="notes-header">
+            <h2>Stream notes</h2>
+            <span id="notes-indicator" class="notes-indicator"></span>
+          </div>
+          <textarea
+            id="notes-textarea"
+            class="notes-textarea"
+            placeholder="Stream notes, reference IPs, commands, talking points&#8230;"
+          ></textarea>
+        </section>
+      </main>
+
+      <!-- ════════════ LIVE VIEW ════════════ -->
+      <main id="view-live" class="view">
+        <div class="live-grid">
+          <!-- Big timer + transport controls -->
+          <section class="live-card live-card--timer">
+            <div class="live-eyebrow">Stream time</div>
+            <div id="timer-display" class="timer-display live-timer-big">&#8211;&#8211;:&#8211;&#8211;:&#8211;&#8211;</div>
+            <div class="live-timer-actions">
+              <button id="go-live-btn" class="go-live-btn">&#9654; Go Live</button>
+              <button id="writeup-btn" class="btn-ghost btn-sm hidden">✦ Write-up</button>
+              <button id="chapters-btn" class="btn-ghost btn-sm hidden">⊞ Chapters</button>
+            </div>
+          </section>
+
+          <!-- Current segment + transport -->
+          <section class="live-card live-card--current">
+            <div class="live-eyebrow">Now</div>
+            <h2 id="live-current-title" class="live-current-title">&#8211;</h2>
+            <p id="live-current-desc" class="live-current-desc"></p>
+            <div id="live-current-pace" class="live-current-pace"></div>
+            <div class="live-current-actions">
+              <button id="live-mark-done-btn" class="btn-primary">Mark done &#8594;</button>
+              <button id="live-highlight-btn" class="btn-ghost hidden" title="Log highlight + save replay">&#x2605; Highlight</button>
+            </div>
+          </section>
+
+          <!-- Up next -->
+          <section class="live-card live-card--next">
+            <div class="live-eyebrow">Up next</div>
+            <h3 id="live-next-title" class="live-next-title">&#8211;</h3>
+            <p id="live-next-desc" class="live-next-desc"></p>
+          </section>
+
+          <!-- Overall progress -->
+          <section class="live-card live-card--progress">
+            <div class="live-eyebrow">Progress</div>
+            <div class="seg-progress-track">
+              <div id="live-seg-fill" class="seg-progress-fill" style="width:0%"></div>
+            </div>
+            <div id="live-seg-counter" class="live-seg-counter">0 / 0 done</div>
+          </section>
+
+          <!-- OBS scene control -->
+          <section class="live-card live-card--scene">
+            <div class="live-eyebrow">OBS scene</div>
+            <div id="live-scene-wrap" class="live-scene-wrap">
+              <span class="live-scene-empty">OBS not connected</span>
+            </div>
+          </section>
+
+          <!-- Open tasks -->
+          <section class="live-card live-card--tasks">
+            <div class="live-eyebrow">Open tasks</div>
+            <div id="live-tasks-count" class="live-tasks-count">0</div>
+            <ul id="live-tasks-list" class="live-tasks-list"></ul>
+          </section>
+
+          <!-- Stream health -->
+          <section class="live-card live-card--health">
+            <div class="live-eyebrow">Stream health</div>
+            <div class="live-health-grid">
+              <div><span>Bitrate</span><strong id="live-h-kbps">&#8211;</strong></div>
+              <div><span>Drops</span><strong id="live-h-drops">&#8211;</strong></div>
+              <div><span>FPS</span><strong id="live-h-fps">&#8211;</strong></div>
+              <div><span>CPU</span><strong id="live-h-cpu">&#8211;</strong></div>
+            </div>
+            <div id="live-h-stale" class="live-health-stale"></div>
+          </section>
+        </div>
+      </main>
+
+      <!-- ════════════ SETUP VIEW ════════════ -->
+      <main id="view-setup" class="view">
+        <section class="panel setup-panel">
+          <div class="panel-header-row">
+            <div>
+              <h2>Project details</h2>
+              <p class="panel-copy">Name, description, focus, platform, and social links.</p>
+            </div>
+            <button id="edit-project-btn" class="btn-primary">Edit project</button>
+          </div>
+          <dl class="setup-meta">
+            <div><dt>Name</dt><dd id="setup-name">&#8211;</dd></div>
+            <div><dt>Description</dt><dd id="setup-desc">&#8211;</dd></div>
+            <div><dt>Focus</dt><dd id="setup-focus">&#8211;</dd></div>
+            <div><dt>Platform</dt><dd id="setup-platform">&#8211;</dd></div>
+          </dl>
+        </section>
+
+        <section class="panel setup-panel">
+          <div class="panel-header-row">
+            <div>
+              <h2>OBS connection</h2>
+              <p class="panel-copy">WebSocket connection, scene sync, BRB detection, lower-thirds text source.</p>
+            </div>
+            <button id="setup-obs-btn" class="btn-primary">Configure OBS</button>
+          </div>
+          <dl class="setup-meta">
+            <div><dt>Status</dt><dd id="setup-obs-status">disconnected</dd></div>
+            <div><dt>Streaming PC</dt><dd id="setup-obs-pc">&#8211;</dd></div>
+            <div><dt>BRB scene</dt><dd id="setup-obs-brb">&#8211;</dd></div>
+            <div><dt>Text source</dt><dd id="setup-obs-text">&#8211;</dd></div>
+          </dl>
+        </section>
+
+        <section class="overlay-section" id="section-overlays">
+          <div class="overlay-section-header">
+            <div>
+              <h2>OBS overlay sources</h2>
+              <p class="panel-copy">Add these as Browser Sources in OBS. Check <strong>Allow transparency</strong> in each source, or append <code>&amp;bg=green</code> / <code>&amp;bg=magenta</code> for chroma key.</p>
+            </div>
+            <div class="overlay-header-btns">
+              <button id="overlay-mode-btn" class="btn-ghost btn-sm" title="Switch to URLs pinned to this project">Pinned</button>
+            </div>
+          </div>
+          <div id="overlay-grid" class="overlay-grid"></div>
+        </section>
+
+        <section class="lb-section" id="section-layouts">
+          <div class="lb-section-header">
+            <div>
+              <h2>Layout builder</h2>
+              <p class="panel-copy">Design multi-widget overlay layouts. Add one URL as a single OBS browser source.</p>
+            </div>
+            <div class="lb-header-btns">
+              <button id="new-layout-btn" class="btn-ghost btn-sm">+ New layout</button>
+            </div>
+          </div>
+          <div id="layout-builder-wrap">
+            <div id="layout-list" class="lb-list"></div>
+          </div>
+        </section>
+      </main>
+
     </div>
   </div>
 

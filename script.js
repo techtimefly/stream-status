@@ -12,6 +12,7 @@ async function api(method, path, body) {
 
 /* ── State ───────────────────────────────────────────────────────── */
 const LOCAL_KEY       = 'stream-status-project-id';
+const VIEWS           = ['plan', 'live', 'setup'];
 let projects          = [];
 let project           = null;
 let filter            = 'all';
@@ -22,7 +23,6 @@ let countdownInterval = null;
 let toastTimer        = null;
 let notesDebounce     = null;
 let capabilities      = {};
-let stickyInitialized = false;
 let wizardMode        = false;
 let currentWizardStep = 1;
 
@@ -42,6 +42,78 @@ async function saveProject() {
   showToast();
 }
 
+/* ── Router ──────────────────────────────────────────────────────── */
+const Router = {
+  current: 'plan',
+
+  parseUrl() {
+    const m = location.pathname.match(/^\/p\/([^/]+)\/(plan|live|setup)\/?$/);
+    if (m) return { projectId: m[1], view: m[2] };
+    return { projectId: null, view: 'plan' };
+  },
+
+  setView(view, opts = {}) {
+    if (!VIEWS.includes(view)) view = 'plan';
+    this.current = view;
+    document.body.dataset.view = view;
+    document.querySelectorAll('.tab-link').forEach(a =>
+      a.classList.toggle('active', a.dataset.view === view)
+    );
+    if (project && !opts.silent) {
+      const newPath = `/p/${project.id}/${view}`;
+      if (location.pathname !== newPath) {
+        history.pushState({ view, projectId: project.id }, '', newPath);
+      }
+    }
+    this.onEnter(view);
+  },
+
+  // Replace current history entry (used during init / project switch
+  // so we don't pile up entries the user didn't trigger).
+  replaceView(view) {
+    if (!VIEWS.includes(view)) view = 'plan';
+    this.current = view;
+    document.body.dataset.view = view;
+    document.querySelectorAll('.tab-link').forEach(a =>
+      a.classList.toggle('active', a.dataset.view === view)
+    );
+    if (project) {
+      const newPath = `/p/${project.id}/${view}`;
+      history.replaceState({ view, projectId: project.id }, '', newPath);
+    }
+    this.onEnter(view);
+  },
+
+  onEnter(view) {
+    if (!project) return;
+    if (view === 'live')  { renderLive(); populateLiveSceneSelect(); }
+    if (view === 'setup') { renderSetupMeta(); renderOverlayLinks(); if (typeof renderLayoutList === 'function') renderLayoutList(); }
+  },
+
+  init() {
+    window.addEventListener('popstate', async () => {
+      const { projectId, view } = this.parseUrl();
+      if (projectId && projectId !== project?.id && projects.find(p => p.id === projectId)) {
+        await switchProject(projectId);
+        render();
+      }
+      this.current = view;
+      document.body.dataset.view = view;
+      document.querySelectorAll('.tab-link').forEach(a =>
+        a.classList.toggle('active', a.dataset.view === view)
+      );
+      this.onEnter(view);
+    });
+
+    document.getElementById('tab-nav')?.addEventListener('click', e => {
+      const link = e.target.closest('.tab-link');
+      if (!link) return;
+      e.preventDefault();
+      this.setView(link.dataset.view);
+    });
+  },
+};
+
 /* ── Bootstrap ───────────────────────────────────────────────────── */
 async function init() {
   try {
@@ -49,16 +121,21 @@ async function init() {
       api('GET', '/projects'),
       api('GET', '/capabilities').catch(() => ({})),
     ]);
+    const { projectId: urlPid } = Router.parseUrl();
     const savedId = localStorage.getItem(LOCAL_KEY);
-    const target  = projects.find(p => p.id === savedId)
-      ? savedId
-      : projects.length ? projects[0].id : null;
+    const target =
+      (urlPid   && projects.find(p => p.id === urlPid))   ? urlPid   :
+      (savedId  && projects.find(p => p.id === savedId))  ? savedId  :
+      projects.length ? projects[0].id : null;
     if (target) await switchProject(target);
   } catch (e) {
     console.error('Init error:', e);
   }
   render();
   bindEvents();
+  Router.init();
+  const { view: initialView } = Router.parseUrl();
+  Router.replaceView(project ? initialView : 'plan');
   if (OBS.getSettings().enabled) OBS.enable();
 }
 
@@ -176,21 +253,12 @@ function render() {
   renderCountdown();
   renderNotes();
   renderOverlayLinks();
-  initStickyBar();
+  renderLive();
+  renderSetupMeta();
   updateStickyBar();
 }
 
-/* ── Sticky bar ──────────────────────────────────────────────────── */
-function initStickyBar() {
-  if (stickyInitialized) return;
-  stickyInitialized = true;
-  const hero = document.querySelector('.hero');
-  const bar  = document.getElementById('sticky-bar');
-  if (!hero || !bar) return;
-  new IntersectionObserver(([entry]) => {
-    bar.classList.toggle('visible', !entry.isIntersecting);
-  }, { threshold: 0 }).observe(hero);
-}
+/* ── Live strip (slim bar shown on Plan/Setup when live) ─────────── */
 
 function updateWriteupButton() {
   const btn = document.getElementById('writeup-btn');
@@ -230,17 +298,22 @@ function updateStickyBar() {
   const seg  = (project.segments || []).find(s => !s.done);
   const live = !!project.liveStartedAt;
   const open = (project.tasks || []).filter(t => !t.completed).length;
-  document.getElementById('sticky-segment').textContent = seg?.title || 'All done!';
+  const strip = document.getElementById('live-strip');
+  if (strip) strip.classList.toggle('visible', live);
+  const segEl = document.getElementById('sticky-segment');
+  if (segEl) segEl.textContent = seg?.title || 'All done!';
   const timerEl = document.getElementById('sticky-timer');
-  timerEl.textContent = live ? formatElapsedPaused(project.liveStartedAt, project.obsTimerPausedDuration, project.obsBrbPausedAt) : '–';
-  timerEl.classList.toggle('live', live);
-  document.getElementById('sticky-tasks').textContent = `${open} open task${open !== 1 ? 's' : ''}`;
+  if (timerEl) {
+    timerEl.textContent = live ? formatElapsedPaused(project.liveStartedAt, project.obsTimerPausedDuration, project.obsBrbPausedAt) : '–';
+    timerEl.classList.toggle('live', live);
+  }
+  const tasksEl = document.getElementById('sticky-tasks');
+  if (tasksEl) tasksEl.textContent = `${open} open task${open !== 1 ? 's' : ''}`;
 }
 
 /* ── Active-segment pace tick ────────────────────────────────────── */
 function updateActivePace() {
-  const el = document.getElementById('active-seg-pace');
-  if (!el || !project?.liveStartedAt) return;
+  if (!project?.liveStartedAt) return;
   const segs      = project.segments || [];
   const activeIdx = segs.findIndex(s => !s.done);
   if (activeIdx < 0) return;
@@ -250,18 +323,30 @@ function updateActivePace() {
   const seg       = segs[activeIdx];
   const planned   = seg.duration ? seg.duration * 60 : null;
   const over      = planned && elapsed > planned;
-  el.classList.toggle('seg-pace--over', !!over);
-  el.textContent  = planned
-    ? `${formatSegTime(elapsed)} / ${seg.duration}:00`
-    : formatSegTime(elapsed);
+  const text      = planned ? `${formatSegTime(elapsed)} / ${seg.duration}:00` : formatSegTime(elapsed);
+
+  const el = document.getElementById('active-seg-pace');
+  if (el) {
+    el.classList.toggle('seg-pace--over', !!over);
+    el.textContent = text;
+  }
+  const live = document.getElementById('live-current-pace');
+  if (live) {
+    live.classList.toggle('live-pace--over', !!over);
+    live.textContent = text;
+  }
 }
 
 /* ── Hero ────────────────────────────────────────────────────────── */
 function renderHero() {
   document.getElementById('project-title').textContent       = project.name;
+  const planTitle = document.getElementById('plan-project-title');
+  if (planTitle) planTitle.textContent = project.name;
   const descEl = document.getElementById('project-description');
-  descEl.textContent = project.description || '';
-  descEl.classList.toggle('hidden', !project.description);
+  if (descEl) {
+    descEl.textContent = project.description || '';
+    descEl.classList.toggle('hidden', !project.description);
+  }
   document.getElementById('project-focus').textContent       = project.focus    || '–';
   document.getElementById('project-platform').textContent    = project.platform || '–';
   document.title = `${project.name} — Stream Status`;
@@ -585,6 +670,135 @@ function renderOverlayLinks() {
   }).join('');
 }
 
+/* ── Live view ───────────────────────────────────────────────────── */
+function renderLive() {
+  if (!project) return;
+  const segs    = project.segments || [];
+  const done    = segs.filter(s => s.done).length;
+  const current = segs.find(s => !s.done);
+  const next    = current ? segs.slice(segs.indexOf(current) + 1).find(s => !s.done) : null;
+
+  const setText = (id, txt) => { const el = document.getElementById(id); if (el) el.textContent = txt; };
+  const setHide = (id, hide) => { const el = document.getElementById(id); if (el) el.classList.toggle('hidden', hide); };
+
+  setText('live-current-title', current?.title || 'All segments done');
+  setText('live-current-desc',  current?.description || '');
+  setText('live-next-title',    next?.title    || (current ? '— end of stream —' : ''));
+  setText('live-next-desc',     next?.description || '');
+
+  // Mark done button: enabled only if there is a current segment
+  const md = document.getElementById('live-mark-done-btn');
+  if (md) md.disabled = !current;
+
+  // Highlight button: only when live + OBS connected
+  const liveHasObs = !!project.liveStartedAt && OBS.status === 'connected';
+  setHide('live-highlight-btn', !liveHasObs || !current);
+
+  // Progress
+  const pct = segs.length ? Math.round((done / segs.length) * 100) : 0;
+  const fill = document.getElementById('live-seg-fill');
+  if (fill) fill.style.width = `${pct}%`;
+  setText('live-seg-counter', `${done} / ${segs.length} done`);
+
+  // Pace text for current segment
+  const live = document.getElementById('live-current-pace');
+  if (live) {
+    if (current && project.liveStartedAt) {
+      const startIso = segStartIso(segs, segs.indexOf(current));
+      if (startIso) {
+        const elapsed = Math.floor((Date.now() - new Date(startIso)) / 1000);
+        const planned = current.duration ? current.duration * 60 : null;
+        const over    = planned && elapsed > planned;
+        live.classList.toggle('live-pace--over', !!over);
+        live.textContent = planned
+          ? `${formatSegTime(elapsed)} / ${current.duration}:00`
+          : formatSegTime(elapsed);
+      } else {
+        live.textContent = '';
+      }
+    } else if (current?.duration) {
+      live.textContent = `${current.duration} min planned`;
+      live.classList.remove('live-pace--over');
+    } else {
+      live.textContent = '';
+    }
+  }
+
+  renderLiveTasks();
+  renderLiveHealth();
+  // Writeup / chapters buttons appear in the Live timer card too — share the same IDs
+  updateWriteupButton();
+  updateChaptersButton();
+}
+
+function renderLiveTasks() {
+  const tasks = project.tasks || [];
+  const open  = tasks.filter(t => !t.completed);
+  const countEl = document.getElementById('live-tasks-count');
+  if (countEl) countEl.textContent = String(open.length);
+  const listEl = document.getElementById('live-tasks-list');
+  if (listEl) {
+    listEl.innerHTML = open.slice(0, 6).map(t =>
+      `<li class="live-task-row" data-id="${esc(t.id)}"><label><input type="checkbox" /> <span>${esc(t.text)}</span></label></li>`
+    ).join('');
+  }
+}
+
+function renderLiveHealth() {
+  const s = project.obsStats;
+  const setText = (id, txt) => { const el = document.getElementById(id); if (el) el.textContent = txt; };
+  if (!s) {
+    setText('live-h-kbps',  '–');
+    setText('live-h-drops', '–');
+    setText('live-h-fps',   '–');
+    setText('live-h-cpu',   '–');
+    setText('live-h-stale', OBS.status === 'connected' ? 'Waiting for stats…' : 'OBS not connected');
+    return;
+  }
+  setText('live-h-kbps',  `${s.kbps || 0} kbps`);
+  setText('live-h-drops', `${(s.droppedFramesPct ?? 0).toFixed(2)}%`);
+  setText('live-h-fps',   `${(s.fps ?? 0).toFixed(1)}`);
+  setText('live-h-cpu',   `${(s.cpuPct ?? 0).toFixed(1)}%`);
+  const stale = s.updatedAt && (Date.now() - new Date(s.updatedAt).getTime() > 15000);
+  setText('live-h-stale', stale ? 'Stats stale (>15s old)' : '');
+}
+
+async function populateLiveSceneSelect() {
+  const wrap = document.getElementById('live-scene-wrap');
+  if (!wrap) return;
+  if (OBS.status !== 'connected') {
+    wrap.innerHTML = '<span class="live-scene-empty">OBS not connected</span>';
+    return;
+  }
+  const scenes = await OBS.getScenes();
+  if (!scenes.length) {
+    wrap.innerHTML = '<span class="live-scene-empty">No scenes from OBS</span>';
+    return;
+  }
+  let current = '';
+  try { current = (await OBS.getCurrentScene()) || ''; } catch {}
+  const options = scenes.map(s =>
+    `<option value="${s.replace(/"/g, '&quot;')}"${s === current ? ' selected' : ''}>${esc(s)}</option>`
+  ).join('');
+  wrap.innerHTML = `<select id="live-scene-select" class="live-scene-select">${options}</select>`;
+}
+
+/* ── Setup view meta ─────────────────────────────────────────────── */
+function renderSetupMeta() {
+  if (!project) return;
+  const setText = (id, txt) => { const el = document.getElementById(id); if (el) el.textContent = txt; };
+  setText('setup-name',     project.name);
+  setText('setup-desc',     project.description || '—');
+  setText('setup-focus',    project.focus       || '—');
+  setText('setup-platform', project.platform    || '—');
+
+  const obs = OBS.getSettings();
+  setText('setup-obs-status', OBS.status);
+  setText('setup-obs-pc',     obs.streamingPcIp || '—');
+  setText('setup-obs-brb',    obs.brbScene      || '—');
+  setText('setup-obs-text',   obs.textSource    || '—');
+}
+
 /* ── Modal helpers ───────────────────────────────────────────────── */
 function openModal(id)  { document.getElementById(id).classList.remove('hidden'); }
 function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
@@ -730,6 +944,7 @@ function bindEvents() {
       await switchProject(switchBtn.dataset.id);
       closeModal('project-modal');
       render();
+      Router.replaceView(Router.current);
     }
     if (deleteBtn) {
       const id     = deleteBtn.dataset.id;
@@ -764,6 +979,7 @@ function bindEvents() {
     e.target.reset();
     closeModal('project-modal');
     render();
+    Router.replaceView(Router.current);
   });
 
   /* Edit project — open */
@@ -1201,15 +1417,6 @@ function bindEvents() {
     renderOverlayLinks();
   });
 
-  /* Overlay section show/hide toggle */
-  document.getElementById('toggle-overlays').addEventListener('click', function () {
-    const grid     = document.getElementById('overlay-grid');
-    const expanded = this.getAttribute('aria-expanded') === 'true';
-    grid.classList.toggle('hidden', expanded);
-    this.textContent = expanded ? 'Show' : 'Hide';
-    this.setAttribute('aria-expanded', String(!expanded));
-  });
-
   /* Overlay URL copy */
   document.getElementById('overlay-grid').addEventListener('click', async e => {
     const btn = e.target.closest('.copy-overlay-url');
@@ -1268,22 +1475,89 @@ function bindEvents() {
     });
     closeModal('obs-modal');
     if (enabled) OBS.enable(); else OBS.disable();
+    renderSetupMeta();
+  });
+
+  /* Setup view — open OBS modal */
+  document.getElementById('setup-obs-btn')?.addEventListener('click', () => {
+    document.getElementById('obs-settings-btn').click();
+  });
+
+  /* Live view — mark current segment done */
+  document.getElementById('live-mark-done-btn')?.addEventListener('click', async () => {
+    const segs    = project?.segments || [];
+    const current = segs.find(s => !s.done);
+    if (!current) return;
+    current.done   = true;
+    current.doneAt = new Date().toISOString();
+    if (activeSegmentKey === current.key) activeSegmentKey = null;
+    if (OBS.status === 'connected') {
+      const nextSeg = (project.segments || []).find(s => !s.done);
+      if (nextSeg?.obsScene) OBS.switchToScene(nextSeg.obsScene);
+      if (nextSeg) {
+        activeSegmentKey = nextSeg.key;
+        OBS.pushTextSource(nextSeg.title);
+      }
+    }
+    await saveProject();
+    renderSegments();
+    renderLive();
+    updateStickyBar();
+  });
+
+  /* Live view — log highlight + save replay buffer */
+  document.getElementById('live-highlight-btn')?.addEventListener('click', async () => {
+    const seg = (project?.segments || []).find(s => !s.done);
+    if (!seg) return;
+    const ts = new Date().toISOString();
+    (project.highlights ??= []).push({ ts, segmentKey: seg.key, segmentTitle: seg.title });
+    await saveProject();
+    OBS.saveReplayBuffer();
+    showToast('★ Highlight logged' + (OBS.replayBufferActive ? ' + replay saved' : ''));
+  });
+
+  /* Live view — scene picker (manual switch) */
+  document.getElementById('live-scene-wrap')?.addEventListener('change', e => {
+    const sel = e.target.closest('#live-scene-select');
+    if (!sel) return;
+    OBS.switchToScene(sel.value);
+  });
+
+  /* Live view — quick task toggle */
+  document.getElementById('live-tasks-list')?.addEventListener('click', async e => {
+    const row = e.target.closest('.live-task-row');
+    if (!row) return;
+    if (!e.target.matches('input[type="checkbox"]')) return;
+    const id   = row.dataset.id;
+    const task = (project.tasks || []).find(t => t.id === id);
+    if (!task) return;
+    task.completed   = e.target.checked;
+    task.completedAt = task.completed ? new Date().toISOString() : null;
+    await saveProject();
+    renderTasks();
+    renderLiveTasks();
+    updateStickyBar();
   });
 }
 
 /* ── OBS status display ──────────────────────────────────────────── */
 function renderOBSStatus() {
   const badge = document.getElementById('obs-settings-btn');
-  if (!badge) return;
-  badge.dataset.status = OBS.status;
-  const labelEl = badge.querySelector('.obs-status-label');
-  if (labelEl) labelEl.textContent = OBS.status === 'connected' ? 'OBS ●' : 'OBS';
+  if (badge) {
+    badge.dataset.status = OBS.status;
+    const labelEl = badge.querySelector('.obs-status-label');
+    if (labelEl) labelEl.textContent = OBS.status === 'connected' ? 'OBS ●' : 'OBS';
+  }
   const detail = document.getElementById('obs-connection-detail');
   if (detail) {
     detail.textContent =
       OBS.status === 'connected'  ? 'Connected' :
       OBS.status === 'connecting' ? 'Connecting…' : 'Disconnected';
   }
+  const setupStatus = document.getElementById('setup-obs-status');
+  if (setupStatus) setupStatus.textContent = OBS.status;
+  // Refresh the live scene picker when status changes
+  if (project) populateLiveSceneSelect();
 }
 
 async function addTask() {
@@ -1444,29 +1718,6 @@ function applyTheme(name) {
   localStorage.setItem('theme', name);
 }
 
-/* ── Jump nav ────────────────────────────────────────────────────── */
-function initJumpNav() {
-  const sectionIds = ['section-segments', 'section-tasks', 'section-notes', 'section-overlays', 'section-layouts'];
-  const linkMap = {};
-  sectionIds.forEach(id => {
-    linkMap[id] = document.querySelector(`.jump-link[href="#${id}"]`);
-  });
-
-  const observer = new IntersectionObserver(entries => {
-    entries.forEach(entry => {
-      if (entry.isIntersecting) {
-        Object.values(linkMap).forEach(l => l?.classList.remove('active'));
-        linkMap[entry.target.id]?.classList.add('active');
-      }
-    });
-  }, { rootMargin: '-10% 0px -70% 0px', threshold: 0 });
-
-  sectionIds.forEach(id => {
-    const el = document.getElementById(id);
-    if (el) observer.observe(el);
-  });
-}
-
 /* ── OBS WebSocket connection manager ────────────────────────────── */
 const OBS_SETTINGS_KEY = 'obs-settings';
 
@@ -1531,6 +1782,9 @@ const OBS = (() => {
       }
     } catch {}
     startStatsPolling();
+    populateLiveSceneSelect();
+    renderLive();
+    renderSetupMeta();
   }
 
   function onDisconnected() {
@@ -1582,6 +1836,10 @@ const OBS = (() => {
       document.querySelector(`.segment-card[data-key="${CSS.escape(match.key)}"]`)
         ?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     }
+
+    // Sync Live view scene dropdown to the new current scene
+    const liveSel = document.getElementById('live-scene-select');
+    if (liveSel) liveSel.value = sceneName;
   }
 
   async function handleBrbStart() {
@@ -1647,6 +1905,7 @@ const OBS = (() => {
       };
       await api('PUT', `/projects/${project.id}/obs-stats`, data);
       project.obsStats = { ...data, updatedAt: new Date().toISOString() };
+      renderLiveHealth();
     } catch {}
   }
 
@@ -1673,10 +1932,18 @@ const OBS = (() => {
     } catch { return []; }
   }
 
+  async function getCurrentScene() {
+    if (_status !== 'connected') return '';
+    try {
+      const r = await ws.call('GetCurrentProgramScene');
+      return r.currentProgramSceneName || r.sceneName || '';
+    } catch { return ''; }
+  }
+
   return {
     get status()            { return _status; },
     get replayBufferActive(){ return replayBufferActive; },
-    enable, disable, connect, switchToScene, saveReplayBuffer, getSettings, saveSettings, getScenes, pushTextSource,
+    enable, disable, connect, switchToScene, saveReplayBuffer, getSettings, saveSettings, getScenes, getCurrentScene, pushTextSource,
   };
 })();
 
@@ -1688,6 +1955,5 @@ window.addEventListener('DOMContentLoaded', () => {
     const dot = e.target.closest('.theme-dot');
     if (dot?.dataset.theme) applyTheme(dot.dataset.theme);
   });
-  initJumpNav();
   init();
 });
