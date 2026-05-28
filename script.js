@@ -10,6 +10,34 @@ async function api(method, path, body) {
   return res.status === 204 ? null : res.json();
 }
 
+/* ── Style system ────────────────────────────────────────────────── */
+const PRESET_STYLES = [
+  { id: 'preset-minimal',   name: 'Minimal',   font: 'system-ui',
+    accent: '#60a5fa', text: '#e8edf5',
+    surface: 'rgba(9, 11, 16, 0.88)', border: 'rgba(255, 255, 255, 0.10)',
+    borderRadius: 18, borderWidth: 1, padding: 16, glow: false, shadow: false },
+  { id: 'preset-broadcast', name: 'Broadcast', font: 'Inter',
+    accent: '#3b82f6', text: '#ffffff',
+    surface: 'rgba(15, 23, 42, 0.95)', border: 'rgba(96, 165, 250, 0.0)',
+    borderRadius: 6, borderWidth: 0, padding: 18, glow: false, shadow: true },
+  { id: 'preset-synthwave', name: 'Synthwave', font: 'Space Grotesk',
+    accent: '#ff0080', text: '#ffffff',
+    surface: 'rgba(0, 0, 0, 0.7)',    border: 'rgba(255, 0, 128, 0.4)',
+    borderRadius: 12, borderWidth: 2, padding: 16, glow: true,  shadow: false },
+  { id: 'preset-newsroom',  name: 'Newsroom',  font: 'Roboto Slab',
+    accent: '#dc2626', text: '#ffffff',
+    surface: 'rgba(20, 20, 24, 0.96)', border: 'transparent',
+    borderRadius: 2,  borderWidth: 0, padding: 20, glow: false, shadow: true },
+  { id: 'preset-terminal',  name: 'Terminal',  font: 'JetBrains Mono',
+    accent: '#22c55e', text: '#a3e635',
+    surface: 'rgba(0, 0, 0, 0.85)',   border: 'rgba(34, 197, 94, 0.4)',
+    borderRadius: 0,  borderWidth: 1, padding: 14, glow: false, shadow: false },
+];
+
+let globalStyles = [];      // fetched from /api/styles
+let editingStyleId = null;  // style currently open in the editor
+let editingStyleScope = 'project'; // 'project' | 'global' | 'preset'
+
 /* ── State ───────────────────────────────────────────────────────── */
 const LOCAL_KEY       = 'stream-status-project-id';
 const VIEWS           = ['plan', 'live', 'setup'];
@@ -87,7 +115,7 @@ const Router = {
   onEnter(view) {
     if (!project) return;
     if (view === 'live')  { renderLive(); populateLiveSceneSelect(); }
-    if (view === 'setup') { renderSetupMeta(); renderOverlayLinks(); if (typeof renderLayoutList === 'function') renderLayoutList(); }
+    if (view === 'setup') { renderSetupMeta(); renderStylePanel(); renderOverlayLinks(); if (typeof renderLayoutList === 'function') renderLayoutList(); }
   },
 
   init() {
@@ -117,9 +145,10 @@ const Router = {
 /* ── Bootstrap ───────────────────────────────────────────────────── */
 async function init() {
   try {
-    [projects, capabilities] = await Promise.all([
+    [projects, capabilities, globalStyles] = await Promise.all([
       api('GET', '/projects'),
       api('GET', '/capabilities').catch(() => ({})),
+      api('GET', '/styles').catch(() => []),
     ]);
     const { projectId: urlPid } = Router.parseUrl();
     const savedId = localStorage.getItem(LOCAL_KEY);
@@ -255,6 +284,7 @@ function render() {
   renderOverlayLinks();
   renderLive();
   renderSetupMeta();
+  renderStylePanel();
   updateStickyBar();
 }
 
@@ -781,6 +811,191 @@ async function populateLiveSceneSelect() {
     `<option value="${s.replace(/"/g, '&quot;')}"${s === current ? ' selected' : ''}>${esc(s)}</option>`
   ).join('');
   wrap.innerHTML = `<select id="live-scene-select" class="live-scene-select">${options}</select>`;
+}
+
+/* ── Style management ────────────────────────────────────────────── */
+function getAllStylesForProject() {
+  // Order: presets, then global styles, then project styles
+  const proj = project?.styles || [];
+  return [
+    ...PRESET_STYLES.map(s   => ({ ...s, scope: 'preset' })),
+    ...globalStyles.map(s    => ({ ...s, scope: 'global' })),
+    ...proj.map(s            => ({ ...s, scope: 'project' })),
+  ];
+}
+
+function findStyle(id) {
+  if (!id) return null;
+  return getAllStylesForProject().find(s => s.id === id) || null;
+}
+
+function defaultStyleBlank() {
+  return {
+    id: `style-${Date.now()}`,
+    name: 'New style',
+    font: 'system-ui',
+    accent: '#60a5fa', text: '#e8edf5',
+    surface: 'rgba(9, 11, 16, 0.88)', border: 'rgba(255, 255, 255, 0.10)',
+    borderRadius: 18, borderWidth: 1, padding: 16,
+    glow: false, shadow: false,
+  };
+}
+
+function renderStylePanel() {
+  if (!project) return;
+  const sel  = document.getElementById('style-active-select');
+  const meta = document.getElementById('style-active-meta');
+  if (!sel) return;
+  const all  = getAllStylesForProject();
+  const active = project.activeStyleId || '';
+  sel.innerHTML = [
+    '<option value="">— Default (Minimal)  —</option>',
+    ...['preset', 'global', 'project'].flatMap(scope => {
+      const group = all.filter(s => s.scope === scope);
+      if (!group.length) return [];
+      const label = { preset: 'Presets', global: 'Global', project: 'Project' }[scope];
+      return [
+        `<optgroup label="${label}">`,
+        ...group.map(s => `<option value="${esc(s.id)}"${s.id === active ? ' selected' : ''}>${esc(s.name)}</option>`),
+        '</optgroup>',
+      ];
+    }),
+  ].join('');
+  const cur = findStyle(active);
+  if (meta) {
+    if (cur) {
+      meta.textContent = `${cur.scope === 'preset' ? 'Preset' : cur.scope === 'global' ? 'Global' : 'Project'} · font ${cur.font} · accent ${cur.accent}`;
+    } else {
+      meta.textContent = 'No style set — overlays use the default Minimal look.';
+    }
+  }
+}
+
+function readStyleForm() {
+  const form = document.getElementById('style-form');
+  const fd   = new FormData(form);
+  return {
+    name:         (fd.get('name') || '').trim() || 'Untitled',
+    font:         fd.get('font') || 'system-ui',
+    accent:       fd.get('accent')  || '#60a5fa',
+    text:         fd.get('text')    || '#e8edf5',
+    surface:      (fd.get('surface') || '').trim() || 'rgba(9, 11, 16, 0.88)',
+    border:       (fd.get('border')  || '').trim() || 'rgba(255, 255, 255, 0.10)',
+    borderRadius: parseInt(fd.get('borderRadius') || '18', 10),
+    borderWidth:  parseInt(fd.get('borderWidth')  || '1',  10),
+    padding:      parseInt(fd.get('padding')      || '16', 10),
+    glow:         !!fd.get('glow'),
+    shadow:       !!fd.get('shadow'),
+  };
+}
+
+function applyStyleToPreview(s) {
+  const root = document.getElementById('style-preview');
+  if (!root) return;
+  root.style.setProperty('--ov-font',         s.font && s.font !== 'system-ui' ? `'${s.font}', system-ui, sans-serif` : 'system-ui, sans-serif');
+  root.style.setProperty('--ov-accent',       s.accent);
+  root.style.setProperty('--ov-text',         s.text);
+  root.style.setProperty('--ov-surface',      s.surface);
+  root.style.setProperty('--ov-border',       s.border);
+  root.style.setProperty('--ov-radius',       `${s.borderRadius}px`);
+  root.style.setProperty('--ov-border-width', `${s.borderWidth}px`);
+  root.style.setProperty('--ov-padding',      `${s.padding}px`);
+  root.style.setProperty('--ov-glow',         s.glow   ? `0 0 24px ${s.accent}` : 'none');
+  root.style.setProperty('--ov-text-shadow',  s.shadow ? '0 1px 3px rgba(0,0,0,0.6)' : 'none');
+  // Lazy load preview font
+  if (s.font && s.font !== 'system-ui') {
+    const id = `pf-${s.font.replace(/\s/g, '-')}`;
+    if (!document.getElementById(id)) {
+      const slug = ({
+        'Inter':           'Inter:wght@400;700',
+        'Space Grotesk':   'Space+Grotesk:wght@400;700',
+        'Roboto Slab':     'Roboto+Slab:wght@400;700',
+        'JetBrains Mono':  'JetBrains+Mono:wght@400;700',
+      })[s.font];
+      if (slug) {
+        const link = document.createElement('link');
+        link.id = id;
+        link.rel = 'stylesheet';
+        link.href = `https://fonts.googleapis.com/css2?family=${slug}&display=swap`;
+        document.head.appendChild(link);
+      }
+    }
+  }
+}
+
+function updateStylePreviewFromForm() {
+  const s = readStyleForm();
+  applyStyleToPreview(s);
+  // Update slider labels
+  const setText = (id, txt) => { const el = document.getElementById(id); if (el) el.textContent = txt; };
+  setText('style-radius-val', `${s.borderRadius}px`);
+  setText('style-bw-val',     `${s.borderWidth}px`);
+  setText('style-pad-val',    `${s.padding}px`);
+  // Sync hex inputs ↔ color pickers
+  const form = document.getElementById('style-form');
+  if (form.elements.accentHex) form.elements.accentHex.value = s.accent;
+  if (form.elements.textHex)   form.elements.textHex.value   = s.text;
+}
+
+function openStyleEditor(style, scope) {
+  editingStyleId    = style.id;
+  editingStyleScope = scope;
+  const form = document.getElementById('style-form');
+  form.elements.name.value         = style.name;
+  form.elements.font.value         = style.font || 'system-ui';
+  form.elements.accent.value       = style.accent;
+  form.elements.text.value         = style.text;
+  form.elements.surface.value      = style.surface;
+  form.elements.border.value       = style.border;
+  form.elements.borderRadius.value = style.borderRadius;
+  form.elements.borderWidth.value  = style.borderWidth;
+  form.elements.padding.value      = style.padding;
+  form.elements.glow.checked       = !!style.glow;
+  form.elements.shadow.checked     = !!style.shadow;
+
+  document.getElementById('style-modal-title').textContent =
+    scope === 'preset'  ? `Preview Preset: ${style.name}` :
+    scope === 'global'  ? `Edit Global Style: ${style.name}` :
+                          `Edit Style: ${style.name}`;
+
+  // Presets are read-only — disable save/delete, leave "Save as global" as a clone path
+  const saveBtn   = form.querySelector('button[type="submit"]');
+  const deleteBtn = document.getElementById('style-delete-btn');
+  saveBtn.disabled   = scope === 'preset';
+  deleteBtn.classList.toggle('hidden', scope === 'preset');
+
+  updateStylePreviewFromForm();
+  openModal('style-modal');
+}
+
+async function saveProjectStyle(style) {
+  (project.styles ??= []);
+  const idx = project.styles.findIndex(s => s.id === style.id);
+  if (idx >= 0) project.styles[idx] = style;
+  else          project.styles.push(style);
+  await saveProject();
+}
+
+async function saveGlobalStyle(style) {
+  const exists = globalStyles.find(s => s.id === style.id);
+  if (exists) await api('PUT', `/styles/${style.id}`, style);
+  else        await api('POST', '/styles', style);
+  globalStyles = await api('GET', '/styles').catch(() => globalStyles);
+}
+
+async function deleteStyleAnywhere(id) {
+  if (project?.styles?.some(s => s.id === id)) {
+    project.styles = project.styles.filter(s => s.id !== id);
+    if (project.activeStyleId === id) project.activeStyleId = null;
+    await saveProject();
+  } else if (globalStyles.some(s => s.id === id)) {
+    await api('DELETE', `/styles/${id}`);
+    globalStyles = globalStyles.filter(s => s.id !== id);
+    if (project && project.activeStyleId === id) {
+      project.activeStyleId = null;
+      await saveProject();
+    }
+  }
 }
 
 /* ── Setup view meta ─────────────────────────────────────────────── */
@@ -1481,6 +1696,87 @@ function bindEvents() {
   /* Setup view — open OBS modal */
   document.getElementById('setup-obs-btn')?.addEventListener('click', () => {
     document.getElementById('obs-settings-btn').click();
+  });
+
+  /* ── Style system ──────────────────────────────────────────────── */
+  /* Active style dropdown */
+  document.getElementById('style-active-select')?.addEventListener('change', async e => {
+    if (!project) return;
+    const id = e.target.value || null;
+    project.activeStyleId = id;
+    await saveProject();
+    renderStylePanel();
+    showToast(id ? 'Active style set' : 'Active style cleared');
+  });
+
+  /* Edit active style */
+  document.getElementById('style-edit-btn')?.addEventListener('click', () => {
+    const id   = project?.activeStyleId || '';
+    const cur  = findStyle(id);
+    if (cur) {
+      openStyleEditor(cur, cur.scope);
+    } else {
+      // Nothing active — open the editor with a blank project-scoped draft
+      openStyleEditor(defaultStyleBlank(), 'project');
+    }
+  });
+
+  /* New style — blank project-scoped draft */
+  document.getElementById('style-new-btn')?.addEventListener('click', () => {
+    openStyleEditor(defaultStyleBlank(), 'project');
+  });
+
+  /* Live preview on any input change */
+  document.getElementById('style-form')?.addEventListener('input', e => {
+    // Sync hex text inputs back into color pickers
+    const form = e.currentTarget;
+    if (e.target.name === 'accentHex' && /^#[0-9a-fA-F]{6}$/.test(e.target.value)) {
+      form.elements.accent.value = e.target.value;
+    }
+    if (e.target.name === 'textHex' && /^#[0-9a-fA-F]{6}$/.test(e.target.value)) {
+      form.elements.text.value = e.target.value;
+    }
+    updateStylePreviewFromForm();
+  });
+
+  /* Save style (form submit) */
+  document.getElementById('style-form')?.addEventListener('submit', async e => {
+    e.preventDefault();
+    if (editingStyleScope === 'preset') return;
+    const data = readStyleForm();
+    const style = { id: editingStyleId, ...data };
+    if (editingStyleScope === 'global') {
+      await saveGlobalStyle({ ...style, global: true });
+    } else {
+      await saveProjectStyle(style);
+      // Auto-activate if no active style was set
+      if (!project.activeStyleId) {
+        project.activeStyleId = style.id;
+        await saveProject();
+      }
+    }
+    closeModal('style-modal');
+    renderStylePanel();
+    showToast('Style saved');
+  });
+
+  /* Save as global — clones the current form data into a global style */
+  document.getElementById('style-save-global-btn')?.addEventListener('click', async () => {
+    const data = readStyleForm();
+    const newId = `global-${Date.now()}`;
+    await saveGlobalStyle({ id: newId, ...data, global: true });
+    renderStylePanel();
+    showToast(`Saved "${data.name}" as global`);
+  });
+
+  /* Delete style */
+  document.getElementById('style-delete-btn')?.addEventListener('click', async () => {
+    if (editingStyleScope === 'preset') return;
+    if (!confirm('Delete this style? Overlays using it will fall back to the default look.')) return;
+    await deleteStyleAnywhere(editingStyleId);
+    closeModal('style-modal');
+    renderStylePanel();
+    showToast('Style deleted');
   });
 
   /* Setup view — reset project progress (for testing) */

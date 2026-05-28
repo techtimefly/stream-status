@@ -1,13 +1,28 @@
+/* ── Style system custom properties (overridden by overlay.js) ──── */
+:root {
+  --ov-font:           system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --ov-accent:         #60a5fa;
+  --ov-text:           #e8edf5;
+  --ov-surface:        rgba(9, 11, 16, 0.88);
+  --ov-border:         rgba(255, 255, 255, 0.10);
+  --ov-radius:         18px;
+  --ov-border-width:   1px;
+  --ov-padding:        16px;
+  --ov-glow:           none;
+  --ov-text-shadow:    none;
+}
+
 /* ── Reset / base ───────────────────────────────────────────────── */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 html, body {
   width: 100%;
   height: 100%;
-  font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-family: var(--ov-font);
   line-height: 1.45;
-  color: #e8edf5;
+  color: var(--ov-text);
   background: transparent;
+  text-shadow: var(--ov-text-shadow);
 }
 body.bg-green   { background: #00ff00; }
 body.bg-magenta { background: #ff00ff; }
@@ -19,13 +34,14 @@ body.size-lg    { font-size: 19px; }
 
 /* ── Panel shell ────────────────────────────────────────────────── */
 .panel {
-  background: rgba(9, 11, 16, 0.88);
-  border: 1px solid rgba(255, 255, 255, 0.10);
-  border-radius: 18px;
-  padding: 16px 20px;
+  background: var(--ov-surface);
+  border: var(--ov-border-width) solid var(--ov-border);
+  border-radius: var(--ov-radius);
+  padding: var(--ov-padding) calc(var(--ov-padding) + 4px);
   display: flex;
   flex-direction: column;
   gap: 12px;
+  box-shadow: var(--ov-glow);
 }
 
 /* ── Shared: header + item list ─────────────────────────────────── */
@@ -38,7 +54,7 @@ body.size-lg    { font-size: 19px; }
 .panel-title {
   font-size: 0.9em;
   font-weight: 700;
-  color: #60a5fa;
+  color: var(--ov-accent);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -48,9 +64,9 @@ body.size-lg    { font-size: 19px; }
 .item          { display: flex; align-items: center; gap: 9px; }
 .item-icon     { font-size: 0.85em; width: 16px; text-align: center; flex-shrink: 0; color: #94a3b8; }
 .item-text     { font-size: 0.92em; }
-.item--done .item-icon { color: #10b981; }
+.item--done .item-icon { color: var(--ov-accent); }
 .item--done .item-text { color: #475569; text-decoration: line-through; }
-.item-empty    { font-size: 0.88em; color: #34d399; }
+.item-empty    { font-size: 0.88em; color: var(--ov-accent); }
 
 /* Shared progress bar */
 .prog-track {
@@ -61,7 +77,7 @@ body.size-lg    { font-size: 19px; }
 }
 .prog-fill {
   height: 100%;
-  background: linear-gradient(90deg, #10b981, #34d399);
+  background: var(--ov-accent);
   border-radius: 999px;
   transition: width 0.8s ease;
 }
@@ -79,9 +95,9 @@ body.size-lg    { font-size: 19px; }
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.14em;
-  color: #60a5fa;
+  color: var(--ov-accent);
 }
-.now-title { font-size: 1.55em; font-weight: 700; line-height: 1.2; color: #f1f5f9; }
+.now-title { font-size: 1.55em; font-weight: 700; line-height: 1.2; color: var(--ov-text); }
 .now-desc  { font-size: 0.88em; color: #94a3b8; line-height: 1.4; }
 .now-next  { font-size: 0.82em; color: #64748b; padding-top: 4px; border-top: 1px solid rgba(255,255,255,0.07); }
 
@@ -107,7 +123,7 @@ body.size-lg    { font-size: 19px; }
   color: #475569;
   line-height: 1;
 }
-.view-timer.live .timer-clock { color: #34d399; }
+.view-timer.live .timer-clock { color: var(--ov-accent); }
 
 /* ── Countdown ──────────────────────────────────────────────────── */
 .view-countdown { width: 300px; gap: 4px; text-align: center; }
@@ -116,7 +132,7 @@ body.size-lg    { font-size: 19px; }
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.14em;
-  color: #60a5fa;
+  color: var(--ov-accent);
   text-align: center;
 }
 .cd-time {
@@ -124,7 +140,7 @@ body.size-lg    { font-size: 19px; }
   font-weight: 800;
   font-variant-numeric: tabular-nums;
   letter-spacing: 0.03em;
-  color: #e2e8f0;
+  color: var(--ov-text);
   line-height: 1;
   text-align: center;
 }
@@ -137,7 +153,7 @@ body.size-lg    { font-size: 19px; }
 .social-name {
   font-size: 0.88em;
   font-weight: 700;
-  color: #60a5fa;
+  color: var(--ov-accent);
   margin-bottom: 2px;
 }
 .social-list { display: flex; flex-direction: column; gap: 8px; }
@@ -153,7 +169,7 @@ body.size-lg    { font-size: 19px; }
 }
 .social-handle {
   font-size: 0.95em;
-  color: #e2e8f0;
+  color: var(--ov-text);
   font-weight: 500;
   word-break: break-all;
 }
@@ -176,10 +192,10 @@ body.size-lg    { font-size: 19px; }
   margin-bottom: 6px;
 }
 .tr-done .tr-side-label { color: #475569; }
-.tr-next .tr-side-label { color: #60a5fa; }
+.tr-next .tr-side-label { color: var(--ov-accent); }
 .tr-side-title { font-size: 1.1em; font-weight: 700; line-height: 1.3; }
 .tr-done .tr-side-title { color: #64748b; }
-.tr-next .tr-side-title { color: #f1f5f9; }
+.tr-next .tr-side-title { color: var(--ov-text); }
 .tr-none { color: #475569 !important; font-style: italic; font-weight: 400 !important; }
 .tr-arrow {
   font-size: 1.4em;
@@ -198,11 +214,11 @@ body.size-lg    { font-size: 19px; }
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.16em;
-  color: #60a5fa;
+  color: var(--ov-accent);
 }
 .lt-text {
   font-size: 1.05em;
-  color: #e2e8f0;
+  color: var(--ov-text);
   line-height: 1.45;
   transition: opacity 0.35s ease, transform 0.35s ease;
 }
@@ -216,7 +232,7 @@ body.size-lg    { font-size: 19px; }
   transition: background 0.3s;
   flex-shrink: 0;
 }
-.lt-dot--active { background: #60a5fa; }
+.lt-dot--active { background: var(--ov-accent); }
 
 /* ── Stream health widget ───────────────────────────────────────── */
 .view-health { width: 340px; }
@@ -233,7 +249,7 @@ body.size-lg    { font-size: 19px; }
   font-size: 1.1em;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
-  color: #e2e8f0;
+  color: var(--ov-text);
 }
 .health-value em { font-style: normal; font-size: 0.72em; color: #64748b; margin-left: 2px; }
 .health-value.health-caution { color: #f59e0b; }
@@ -272,15 +288,15 @@ body.size-lg    { font-size: 19px; }
   background: transparent;
 }
 
-/* Widget with "Show background" enabled — restore the dark panel look */
+/* Widget with "Show background" enabled — restore the styled panel look */
 .lf-w.has-bg .panel {
-  background: rgba(9, 11, 16, 0.88) !important;
-  border: 1px solid rgba(255, 255, 255, 0.10) !important;
-  border-radius: 14px !important;
+  background: var(--ov-surface) !important;
+  border: var(--ov-border-width) solid var(--ov-border) !important;
+  border-radius: var(--ov-radius) !important;
 }
 .lz-w.has-bg .panel {
-  background: rgba(9, 11, 16, 0.88) !important;
-  border: 1px solid rgba(255, 255, 255, 0.10) !important;
+  background: var(--ov-surface) !important;
+  border: var(--ov-border-width) solid var(--ov-border) !important;
 }
 /* Lower-third: override fixed width when inside a layout */
 .lz-w .view-lowerthird,

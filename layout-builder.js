@@ -342,6 +342,13 @@ function lbBuildEditorHtml() {
         </label>
         <span class="lb-global-toggle-label">🌐 Global</span>
       </label>
+      <select id="lb-apply-style" class="lb-size-select" title="Apply a style to every widget in this layout">
+        <option value="">Apply style to all…</option>
+        ${(typeof getAllStylesForProject === 'function' ? getAllStylesForProject() : []).map(s =>
+          `<option value="${esc(s.id)}">${esc(s.name)} (${s.scope})</option>`
+        ).join('')}
+        <option value="__clear__">— Clear all overrides —</option>
+      </select>
       <button id="lb-save-btn" class="btn-primary btn-sm">Save layout</button>
     </div>
     <div class="lb-editor-body">
@@ -423,6 +430,28 @@ function lbBindEditorEvents() {
 
   // Save
   document.getElementById('lb-save-btn').addEventListener('click', lbSave);
+
+  // Bulk apply style to every widget in the layout
+  document.getElementById('lb-apply-style')?.addEventListener('change', e => {
+    const val = e.target.value;
+    if (!val) return;
+    const clear = val === '__clear__';
+    const apply = (params) => {
+      if (clear) { if (params) delete params.styleId; return params; }
+      const p = params || {}; p.styleId = val; return p;
+    };
+    if (lbEditing.mode === 'freeform') {
+      (lbEditing.widgets || []).forEach(w => { w.params = apply(w.params); });
+    } else {
+      (lbEditing.zones || []).forEach(z => {
+        (z.widgets || []).forEach(zw => { zw.params = apply(zw.params); });
+      });
+    }
+    e.target.value = '';
+    lbRenderCanvas();
+    lbRenderInspector();
+    showToast(clear ? 'Per-widget style overrides cleared' : 'Style applied to all widgets');
+  });
 
   // Palette drag
   document.querySelectorAll('.lb-palette-item').forEach(item => {
@@ -759,6 +788,22 @@ function lbRenderCanvas() {
 }
 
 /* ═══════════════════════════════════════════════════════════════════
+   STYLE PICKER HELPER (shared with script.js globals)
+   ═══════════════════════════════════════════════════════════════════ */
+function lbStyleSelectOptions(currentId) {
+  const all = (typeof getAllStylesForProject === 'function') ? getAllStylesForProject() : [];
+  const groups = ['preset', 'global', 'project'].map(scope => {
+    const group = all.filter(s => s.scope === scope);
+    if (!group.length) return '';
+    const label = { preset: 'Presets', global: 'Global', project: 'Project' }[scope];
+    return `<optgroup label="${label}">${
+      group.map(s => `<option value="${esc(s.id)}"${s.id === currentId ? ' selected' : ''}>${esc(s.name)}</option>`).join('')
+    }</optgroup>`;
+  }).join('');
+  return `<option value="">— Layout default —</option>${groups}`;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
    INSPECTOR
    ═══════════════════════════════════════════════════════════════════ */
 function lbRenderInspector() {
@@ -859,6 +904,13 @@ function lbRenderInspector() {
                  value="${esc(w.params?.countdownLabel ?? '')}" placeholder="Countdown" />
         </label>
       </div>` : ''}
+      <div class="lb-insp-group">
+        <p class="lb-insp-subtitle">Style</p>
+        <label class="lb-insp-label">
+          <select class="lb-inp" id="insp-style">${lbStyleSelectOptions(w.params?.styleId)}</select>
+          <p class="lb-insp-hint">Overrides the layout default for this widget only.</p>
+        </label>
+      </div>
       <button class="btn-ghost btn-sm lb-insp-delete">&#x2715; Remove widget</button>`;
 
     // Bind inputs
@@ -923,6 +975,14 @@ function lbRenderInspector() {
         else (w.params ??= {}).countdownLabel = val;
       });
     }
+
+    // Per-widget style override
+    document.getElementById('insp-style')?.addEventListener('change', e => {
+      const val = e.target.value;
+      if (val) (w.params ??= {}).styleId = val;
+      else if (w.params)   delete w.params.styleId;
+      lbRenderCanvas();
+    });
 
     el.querySelector('.lb-insp-delete')?.addEventListener('click', () => lbDeleteFreeformWidget(lbSelected));
 
@@ -995,6 +1055,13 @@ function lbRenderInspector() {
                    value="${esc(zw.params?.countdownLabel ?? '')}" placeholder="Countdown" />
           </label>
         </div>` : ''}
+        <div class="lb-insp-group">
+          <p class="lb-insp-subtitle">Style</p>
+          <label class="lb-insp-label">
+            <select class="lb-inp" id="insp-style">${lbStyleSelectOptions(zw.params?.styleId)}</select>
+            <p class="lb-insp-hint">Overrides the layout default for this widget only.</p>
+          </label>
+        </div>
         <button class="btn-ghost btn-sm lb-insp-delete">&#x2715; Remove from zone</button>`;
 
       document.getElementById('insp-showbg')?.addEventListener('change', e => {
@@ -1033,6 +1100,11 @@ function lbRenderInspector() {
           else (zw.params ??= {}).countdownLabel = val;
         });
       }
+      document.getElementById('insp-style')?.addEventListener('change', e => {
+        const val = e.target.value;
+        if (val) (zw.params ??= {}).styleId = val;
+        else if (zw.params)   delete zw.params.styleId;
+      });
       el.querySelector('.lb-insp-delete')?.addEventListener('click', () => {
         lbRemoveZoneWidget(lbZwSelected.zoneId, lbZwSelected.widgetId);
         lbZwSelected = null;

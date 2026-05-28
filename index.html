@@ -191,6 +191,98 @@
     </div>
   </div>
 
+  <!-- Style Editor modal -->
+  <div id="style-modal" class="modal hidden">
+    <div class="modal-backdrop" data-modal="style-modal"></div>
+    <div class="modal-box modal-box--md">
+      <div class="modal-header">
+        <h2 id="style-modal-title">Edit Style</h2>
+        <button class="close-modal icon-btn" data-modal="style-modal">&#x2715;</button>
+      </div>
+      <div class="style-editor">
+        <form id="style-form" class="style-form">
+          <input name="name" type="text" placeholder="Style name *" required />
+
+          <label class="style-field">
+            <span>Font</span>
+            <select name="font">
+              <option value="system-ui">System default</option>
+              <option value="Inter">Inter</option>
+              <option value="Space Grotesk">Space Grotesk</option>
+              <option value="Roboto Slab">Roboto Slab</option>
+              <option value="JetBrains Mono">JetBrains Mono</option>
+            </select>
+          </label>
+
+          <label class="style-field">
+            <span>Accent</span>
+            <div class="style-color-row">
+              <input name="accent" type="color" value="#60a5fa" />
+              <input name="accentHex" type="text" maxlength="9" placeholder="#60a5fa" />
+            </div>
+          </label>
+
+          <label class="style-field">
+            <span>Text</span>
+            <div class="style-color-row">
+              <input name="text" type="color" value="#e8edf5" />
+              <input name="textHex" type="text" maxlength="9" placeholder="#e8edf5" />
+            </div>
+          </label>
+
+          <label class="style-field">
+            <span>Surface</span>
+            <input name="surface" type="text" placeholder="rgba(9, 11, 16, 0.88)" />
+          </label>
+
+          <label class="style-field">
+            <span>Border</span>
+            <input name="border" type="text" placeholder="rgba(255, 255, 255, 0.10)" />
+          </label>
+
+          <label class="style-field style-slider">
+            <span>Border radius <em id="style-radius-val">18px</em></span>
+            <input name="borderRadius" type="range" min="0" max="32" value="18" />
+          </label>
+
+          <label class="style-field style-slider">
+            <span>Border width <em id="style-bw-val">1px</em></span>
+            <input name="borderWidth" type="range" min="0" max="6" value="1" />
+          </label>
+
+          <label class="style-field style-slider">
+            <span>Padding <em id="style-pad-val">16px</em></span>
+            <input name="padding" type="range" min="6" max="36" value="16" />
+          </label>
+
+          <div class="style-toggle-row">
+            <label><input type="checkbox" name="glow" /> Glow effect</label>
+            <label><input type="checkbox" name="shadow" /> Drop shadow on text</label>
+          </div>
+
+          <div class="style-form-actions">
+            <button type="button" class="btn-ghost" id="style-save-global-btn" title="Save this style globally so other projects can use it">Save as global</button>
+            <button type="button" class="btn-ghost" id="style-delete-btn">Delete</button>
+            <button type="submit" class="btn-primary">Save</button>
+          </div>
+        </form>
+
+        <div class="style-preview-wrap">
+          <p class="style-preview-label">Live preview</p>
+          <div class="style-preview" id="style-preview">
+            <div class="style-preview-card">
+              <div class="style-preview-eyebrow">Now</div>
+              <div class="style-preview-title">VLAN segmentation</div>
+              <div class="style-preview-desc">Set up the trunk port and tag the management VLAN.</div>
+              <div class="style-preview-bar"><div class="style-preview-bar-fill"></div></div>
+            </div>
+          </div>
+          <p class="style-preview-hint">Live overlays update on their next poll cycle.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- OBS settings modal -->
   <div id="obs-modal" class="modal hidden">
     <div class="modal-backdrop"></div>
@@ -475,6 +567,26 @@
             <div><dt>BRB scene</dt><dd id="setup-obs-brb">&#8211;</dd></div>
             <div><dt>Text source</dt><dd id="setup-obs-text">&#8211;</dd></div>
           </dl>
+        </section>
+
+        <section class="panel setup-panel" id="section-style">
+          <div class="panel-header-row">
+            <div>
+              <h2>Stream style</h2>
+              <p class="panel-copy">Pick a preset, customize per project, or save your own as a reusable global style. Applied to every overlay URL that includes <code>?project=&lt;id&gt;</code>.</p>
+            </div>
+            <div class="style-panel-actions">
+              <button id="style-new-btn" class="btn-ghost btn-sm">+ New style</button>
+              <button id="style-edit-btn" class="btn-primary btn-sm">Edit active</button>
+            </div>
+          </div>
+          <div class="style-active-row">
+            <label class="style-active-label">
+              <span>Active style</span>
+              <select id="style-active-select" class="style-active-select"></select>
+            </label>
+            <p id="style-active-meta" class="style-active-meta"></p>
+          </div>
         </section>
 
         <section class="overlay-section" id="section-overlays">

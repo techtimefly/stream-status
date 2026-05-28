@@ -1,4 +1,4 @@
-/* v3 — layout builder support */
+/* v4 — style system */
 const PAGE_LOAD_MS = Date.now();           // Frozen at load — base for custom countdown durations
 const widgetCountdownTargets = {};         // widgetId → epoch ms, computed once per session
 const params      = new URLSearchParams(location.search);
@@ -10,10 +10,150 @@ const POLL_S      = Math.max(3, parseInt(params.get('poll') || '5', 10));
 const TRANSITION  = params.get('transition') || 'slide';
 const SHOW_S      = params.get('show') ? Math.max(1, parseInt(params.get('show'), 10)) : null;
 const LAYOUT_ID   = params.get('layout')     || '';
+const STYLE_ID    = params.get('style')      || '';
 
 if (BG === 'green')   document.body.classList.add('bg-green');
 if (BG === 'magenta') document.body.classList.add('bg-magenta');
 document.body.classList.add(`size-${SIZE}`);
+
+/* ── Style system ──────────────────────────────────────────────── */
+const PRESET_STYLES = [
+  {
+    id: 'preset-minimal', name: 'Minimal',
+    font: 'system-ui',
+    accent: '#60a5fa', text: '#e8edf5',
+    surface: 'rgba(9, 11, 16, 0.88)', border: 'rgba(255, 255, 255, 0.10)',
+    borderRadius: 18, borderWidth: 1, padding: 16,
+    glow: false, shadow: false,
+  },
+  {
+    id: 'preset-broadcast', name: 'Broadcast',
+    font: 'Inter',
+    accent: '#3b82f6', text: '#ffffff',
+    surface: 'rgba(15, 23, 42, 0.95)', border: 'rgba(96, 165, 250, 0.0)',
+    borderRadius: 6, borderWidth: 0, padding: 18,
+    glow: false, shadow: true,
+  },
+  {
+    id: 'preset-synthwave', name: 'Synthwave',
+    font: 'Space Grotesk',
+    accent: '#ff0080', text: '#ffffff',
+    surface: 'rgba(0, 0, 0, 0.7)', border: 'rgba(255, 0, 128, 0.4)',
+    borderRadius: 12, borderWidth: 2, padding: 16,
+    glow: true, shadow: false,
+  },
+  {
+    id: 'preset-newsroom', name: 'Newsroom',
+    font: 'Roboto Slab',
+    accent: '#dc2626', text: '#ffffff',
+    surface: 'rgba(20, 20, 24, 0.96)', border: 'transparent',
+    borderRadius: 2, borderWidth: 0, padding: 20,
+    glow: false, shadow: true,
+  },
+  {
+    id: 'preset-terminal', name: 'Terminal',
+    font: 'JetBrains Mono',
+    accent: '#22c55e', text: '#a3e635',
+    surface: 'rgba(0, 0, 0, 0.85)', border: 'rgba(34, 197, 94, 0.4)',
+    borderRadius: 0, borderWidth: 1, padding: 14,
+    glow: false, shadow: false,
+  },
+];
+
+const GOOGLE_FONTS = {
+  'Inter':            'Inter:wght@400;700',
+  'Space Grotesk':    'Space+Grotesk:wght@400;700',
+  'Roboto Slab':      'Roboto+Slab:wght@400;700',
+  'JetBrains Mono':   'JetBrains+Mono:wght@400;700',
+};
+
+function loadGoogleFont(name) {
+  if (!name || !GOOGLE_FONTS[name]) return;
+  if (document.querySelector(`link[data-font="${name}"]`)) return;
+  const link = document.createElement('link');
+  link.rel = 'stylesheet';
+  link.dataset.font = name;
+  link.href = `https://fonts.googleapis.com/css2?family=${GOOGLE_FONTS[name]}&display=swap`;
+  document.head.appendChild(link);
+}
+
+function applyStyle(s) {
+  if (!s) return;
+  const root = document.documentElement;
+  const fontStack = GOOGLE_FONTS[s.font]
+    ? `'${s.font}', system-ui, sans-serif`
+    : (s.font || 'system-ui, -apple-system, BlinkMacSystemFont, sans-serif');
+  root.style.setProperty('--ov-font',         fontStack);
+  root.style.setProperty('--ov-accent',       s.accent  || '#60a5fa');
+  root.style.setProperty('--ov-text',         s.text    || '#e8edf5');
+  root.style.setProperty('--ov-surface',      s.surface || 'rgba(9, 11, 16, 0.88)');
+  root.style.setProperty('--ov-border',       s.border  || 'rgba(255, 255, 255, 0.10)');
+  root.style.setProperty('--ov-radius',       `${s.borderRadius ?? 18}px`);
+  root.style.setProperty('--ov-border-width', `${s.borderWidth  ?? 1}px`);
+  root.style.setProperty('--ov-padding',      `${s.padding      ?? 16}px`);
+  root.style.setProperty('--ov-glow',         s.glow ? `0 0 24px ${s.accent || '#60a5fa'}` : 'none');
+  root.style.setProperty('--ov-text-shadow',  s.shadow ? '0 1px 3px rgba(0,0,0,0.6)' : 'none');
+  loadGoogleFont(s.font);
+}
+
+let globalStylesCache = null;
+async function ensureGlobalStyles() {
+  if (globalStylesCache) return globalStylesCache;
+  try {
+    const r = await fetch('/api/styles');
+    globalStylesCache = r.ok ? await r.json() : [];
+  } catch { globalStylesCache = []; }
+  return globalStylesCache;
+}
+
+function findStyleSync(id, project) {
+  if (!id) return null;
+  return PRESET_STYLES.find(s => s.id === id)
+      || (project?.styles || []).find(s => s.id === id)
+      || (globalStylesCache || []).find(s => s.id === id)
+      || null;
+}
+
+function styleVarsInline(style) {
+  if (!style) return '';
+  const fontStack = GOOGLE_FONTS[style.font]
+    ? `'${style.font}', system-ui, sans-serif`
+    : (style.font || 'system-ui');
+  loadGoogleFont(style.font);
+  return [
+    `--ov-font:${fontStack}`,
+    `--ov-accent:${style.accent}`,
+    `--ov-text:${style.text}`,
+    `--ov-surface:${style.surface}`,
+    `--ov-border:${style.border}`,
+    `--ov-radius:${style.borderRadius ?? 18}px`,
+    `--ov-border-width:${style.borderWidth ?? 1}px`,
+    `--ov-padding:${style.padding ?? 16}px`,
+    `--ov-glow:${style.glow ? `0 0 24px ${style.accent}` : 'none'}`,
+    `--ov-text-shadow:${style.shadow ? '0 1px 3px rgba(0,0,0,0.6)' : 'none'}`,
+  ].join(';');
+}
+
+async function resolveStyle(project) {
+  // 1. Explicit ?style= wins.
+  let styleId = STYLE_ID;
+  // 2. Otherwise, if scoped to a project, use its activeStyleId.
+  if (!styleId && project && project.activeStyleId) styleId = project.activeStyleId;
+  if (!styleId) return null;
+
+  // Project-scoped style (id stored on project.styles[])
+  const projStyle = (project?.styles || []).find(s => s.id === styleId);
+  if (projStyle) return projStyle;
+  // Preset
+  const preset = PRESET_STYLES.find(s => s.id === styleId);
+  if (preset) return preset;
+  // Global style (fetch)
+  try {
+    const res = await fetch(`/api/styles/${encodeURIComponent(styleId)}`);
+    if (res.ok) return await res.json();
+  } catch {}
+  return null;
+}
 
 async function fetchProject() {
   let pid = PROJECT_ID;
@@ -409,9 +549,11 @@ function buildLayoutStructure(p, layout) {
         const bgCls   = zw.params?.showBg ? ' has-bg' : '';
         const opacPct = zw.params?.opacity;
         const opacSty = opacPct != null && opacPct < 100 ? `opacity:${opacPct / 100};` : '';
+        const styVars = zw.params?.styleId ? styleVarsInline(findStyleSync(zw.params.styleId, p)) : '';
+        const inline  = [opacSty, styVars].filter(Boolean).join(';');
         return `<div class="lz-w${bgCls}" data-lview="${zone.id}-${i}" ` +
           `data-view="${zw.view}" data-zwid="${zw.id}"` +
-          (opacSty ? ` style="${opacSty}"` : '') + `>` +
+          (inline ? ` style="${inline}"` : '') + `>` +
           renderWidgetHtml(zw.view, p, zw.params, zw.id) + `</div>`;
       }).join('');
       return `<div style="${zStyle}">${widgets}</div>`;
@@ -421,9 +563,10 @@ function buildLayoutStructure(p, layout) {
       const bgCls   = w.params?.showBg ? ' has-bg' : '';
       const opacPct = w.params?.opacity;
       const opacSty = opacPct != null && opacPct < 100 ? `;opacity:${opacPct / 100}` : '';
+      const styVars = w.params?.styleId ? `;${styleVarsInline(findStyleSync(w.params.styleId, p))}` : '';
       return `<div class="lf-w${bgCls}" data-lview="${w.id}" data-view="${w.view}" ` +
         `style="position:absolute;left:${w.x}px;top:${w.y}px;` +
-        `width:${w.w}px;height:${w.h}px;overflow:hidden${opacSty};">` +
+        `width:${w.w}px;height:${w.h}px;overflow:hidden${opacSty}${styVars};">` +
         renderWidgetHtml(w.view, p, w.params, w.id) + `</div>`;
     }).join('');
   }
@@ -440,6 +583,12 @@ function updateLayoutInPlace(p, skipLt) {
     // Re-sync appearance params (freeform)
     if (el.classList.contains('lf-w') && layout) {
       const w = (layout.widgets || []).find(w => w.id === el.dataset.lview);
+      // Reapply per-widget style vars (in case styleId changed since first render)
+      const sid = w?.params?.styleId;
+      const s   = sid ? findStyleSync(sid, p) : null;
+      // Strip any old --ov-* and reapply
+      el.style.cssText = el.style.cssText.replace(/--ov-[^:]+:[^;]+;?/g, '');
+      if (s) el.style.cssText += `;${styleVarsInline(s)}`;
       el.innerHTML = renderWidgetHtml(view, p, w?.params, w?.id);
       if (w) {
         el.classList.toggle('has-bg', !!w.params?.showBg);
@@ -452,6 +601,11 @@ function updateLayoutInPlace(p, skipLt) {
       const zw   = zwid
         ? (layout.zones || []).flatMap(z => z.widgets || []).find(w => w.id === zwid)
         : null;
+      // Reapply per-widget style vars (in case styleId changed since first render)
+      el.style.cssText = el.style.cssText.replace(/--ov-[^:]+:[^;]+;?/g, '');
+      const sid = zw?.params?.styleId;
+      const s   = sid ? findStyleSync(sid, p) : null;
+      if (s) el.style.cssText += `;${styleVarsInline(s)}`;
       el.innerHTML = renderWidgetHtml(view, p, zw?.params, zw?.id);
       if (zw) {
         el.classList.toggle('has-bg', !!zw.params?.showBg);
@@ -507,6 +661,8 @@ function startCountdownTick() {
 }
 
 /* ── Render loop ────────────────────────────────────────────────── */
+let lastAppliedStyleId = null;
+
 async function update() {
   const p    = await fetchProject();
   const root = document.getElementById('overlay-root');
@@ -518,6 +674,15 @@ async function update() {
     return;
   }
   cachedProject = p;
+
+  // Resolve & apply the active style (only re-apply when it actually changes,
+  // so we don't pile up <link> tags or thrash :root on every poll cycle).
+  const desiredStyleId = STYLE_ID || p.activeStyleId || null;
+  if (desiredStyleId !== lastAppliedStyleId) {
+    const resolved = await resolveStyle(p);
+    if (resolved) applyStyle(resolved);
+    lastAppliedStyleId = desiredStyleId;
+  }
 
   switch (VIEW) {
     case 'tasks':      root.innerHTML = viewTasks(p);      break;
@@ -556,6 +721,8 @@ async function update() {
     case 'health':     root.innerHTML = viewHealth(p);     break;
     case 'layout': {
       if (!LAYOUT_ID) { root.innerHTML = viewError(); break; }
+      // Preload global styles so per-widget styleId lookups can find them sync
+      await ensureGlobalStyles();
       let layout = (p.layouts || []).find(l => l.id === LAYOUT_ID);
       // Fall back to global layouts if not found in project
       if (!layout) {

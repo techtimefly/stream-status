@@ -8,6 +8,7 @@ from flask import Flask, jsonify, request, abort
 DATA_DIR            = '/var/lib/stream-status/projects'
 ACTIVE_FILE         = '/var/lib/stream-status/active.json'
 GLOBAL_LAYOUTS_FILE = '/var/lib/stream-status/global-layouts.json'
+GLOBAL_STYLES_FILE  = '/var/lib/stream-status/global-styles.json'
 os.makedirs(DATA_DIR, exist_ok=True)
 
 
@@ -21,6 +22,18 @@ def _read_global_layouts() -> list:
 def _write_global_layouts(layouts: list) -> None:
     with open(GLOBAL_LAYOUTS_FILE, 'w') as f:
         json.dump(layouts, f, indent=2)
+
+
+def _read_global_styles() -> list:
+    if not os.path.exists(GLOBAL_STYLES_FILE):
+        return []
+    with open(GLOBAL_STYLES_FILE) as f:
+        return json.load(f)
+
+
+def _write_global_styles(styles: list) -> None:
+    with open(GLOBAL_STYLES_FILE, 'w') as f:
+        json.dump(styles, f, indent=2)
 
 app = Flask(__name__)
 
@@ -255,6 +268,56 @@ def update_global_layout(layout_id):
 def delete_global_layout(layout_id):
     layouts = [l for l in _read_global_layouts() if l.get('id') != layout_id]
     _write_global_layouts(layouts)
+    return '', 204
+
+
+@app.route('/api/styles', methods=['GET'])
+def list_global_styles():
+    return jsonify(_read_global_styles())
+
+
+@app.route('/api/styles', methods=['POST'])
+def create_global_style():
+    body = request.get_json(silent=True)
+    if not body or not body.get('id'):
+        abort(400)
+    styles = _read_global_styles()
+    styles = [s for s in styles if s.get('id') != body['id']]
+    body['global'] = True
+    styles.append(body)
+    _write_global_styles(styles)
+    return jsonify(body), 201
+
+
+@app.route('/api/styles/<style_id>', methods=['GET'])
+def get_global_style(style_id):
+    style = next((s for s in _read_global_styles() if s.get('id') == style_id), None)
+    if not style:
+        abort(404)
+    return jsonify(style)
+
+
+@app.route('/api/styles/<style_id>', methods=['PUT'])
+def update_global_style(style_id):
+    body = request.get_json(silent=True)
+    if not body:
+        abort(400)
+    styles = _read_global_styles()
+    body['id'] = style_id
+    body['global'] = True
+    idx = next((i for i, s in enumerate(styles) if s.get('id') == style_id), None)
+    if idx is not None:
+        styles[idx] = body
+    else:
+        styles.append(body)
+    _write_global_styles(styles)
+    return jsonify(body)
+
+
+@app.route('/api/styles/<style_id>', methods=['DELETE'])
+def delete_global_style(style_id):
+    styles = [s for s in _read_global_styles() if s.get('id') != style_id]
+    _write_global_styles(styles)
     return '', 204
 
 
