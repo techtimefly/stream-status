@@ -656,6 +656,10 @@ select optgroup {
   text-transform: none;
   letter-spacing: 0;
 }
+.style-alpha-range {
+  flex: 1;
+  min-width: 0;
+}
 .style-slider em {
   font-style: normal;
   color: var(--text);

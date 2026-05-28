@@ -231,13 +231,19 @@
           </label>
 
           <label class="style-field">
-            <span>Surface</span>
-            <input name="surface" type="text" placeholder="rgba(9, 11, 16, 0.88)" />
+            <span>Surface <em id="style-surface-val">88%</em></span>
+            <div class="style-color-row">
+              <input name="surfaceColor" type="color" value="#090b10" />
+              <input name="surfaceAlpha" type="range" min="0" max="100" value="88" class="style-alpha-range" />
+            </div>
           </label>
 
           <label class="style-field">
-            <span>Border</span>
-            <input name="border" type="text" placeholder="rgba(255, 255, 255, 0.10)" />
+            <span>Border <em id="style-border-val">10%</em></span>
+            <div class="style-color-row">
+              <input name="borderColor" type="color" value="#ffffff" />
+              <input name="borderAlpha" type="range" min="0" max="100" value="10" class="style-alpha-range" />
+            </div>
           </label>
 
           <label class="style-field style-slider">

@@ -829,6 +829,33 @@ function findStyle(id) {
   return getAllStylesForProject().find(s => s.id === id) || null;
 }
 
+/* Parse a color value (rgba/hex/transparent) into a { hex, alpha } pair
+   so it can be edited with a color picker + opacity slider. */
+function parseColorValue(str) {
+  const s = (str || '').trim();
+  if (!s || s === 'transparent') return { hex: '#000000', alpha: 0 };
+  const rgba = s.match(/^rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*(?:,\s*([\d.]+))?\s*\)$/);
+  if (rgba) {
+    const r = parseInt(rgba[1], 10), g = parseInt(rgba[2], 10), b = parseInt(rgba[3], 10);
+    const a = rgba[4] !== undefined ? parseFloat(rgba[4]) : 1;
+    return { hex: '#' + [r, g, b].map(n => n.toString(16).padStart(2, '0')).join(''), alpha: a };
+  }
+  const hex6 = s.match(/^#([0-9a-fA-F]{6})$/);
+  if (hex6) return { hex: '#' + hex6[1].toLowerCase(), alpha: 1 };
+  const hex3 = s.match(/^#([0-9a-fA-F]{3})$/);
+  if (hex3) return { hex: '#' + hex3[1].split('').map(c => c+c).join('').toLowerCase(), alpha: 1 };
+  return { hex: '#000000', alpha: 1 };
+}
+
+function buildRgba(hex, alpha) {
+  const m = (hex || '').match(/^#([0-9a-fA-F]{6})$/);
+  if (!m) return hex || 'transparent';
+  const r = parseInt(m[1].slice(0, 2), 16);
+  const g = parseInt(m[1].slice(2, 4), 16);
+  const b = parseInt(m[1].slice(4, 6), 16);
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
 function defaultStyleBlank() {
   return {
     id: `style-${Date.now()}`,
@@ -874,13 +901,15 @@ function renderStylePanel() {
 function readStyleForm() {
   const form = document.getElementById('style-form');
   const fd   = new FormData(form);
+  const surfaceAlpha = parseInt(fd.get('surfaceAlpha') || '88', 10) / 100;
+  const borderAlpha  = parseInt(fd.get('borderAlpha')  || '10', 10) / 100;
   return {
     name:         (fd.get('name') || '').trim() || 'Untitled',
     font:         fd.get('font') || 'system-ui',
     accent:       fd.get('accent')  || '#60a5fa',
     text:         fd.get('text')    || '#e8edf5',
-    surface:      (fd.get('surface') || '').trim() || 'rgba(9, 11, 16, 0.88)',
-    border:       (fd.get('border')  || '').trim() || 'rgba(255, 255, 255, 0.10)',
+    surface:      buildRgba(fd.get('surfaceColor') || '#090b10', surfaceAlpha),
+    border:       buildRgba(fd.get('borderColor')  || '#ffffff', borderAlpha),
     borderRadius: parseInt(fd.get('borderRadius') || '18', 10),
     borderWidth:  parseInt(fd.get('borderWidth')  || '1',  10),
     padding:      parseInt(fd.get('padding')      || '16', 10),
@@ -927,12 +956,14 @@ function updateStylePreviewFromForm() {
   const s = readStyleForm();
   applyStyleToPreview(s);
   // Update slider labels
-  const setText = (id, txt) => { const el = document.getElementById(id); if (el) el.textContent = txt; };
-  setText('style-radius-val', `${s.borderRadius}px`);
-  setText('style-bw-val',     `${s.borderWidth}px`);
-  setText('style-pad-val',    `${s.padding}px`);
-  // Sync hex inputs ↔ color pickers
   const form = document.getElementById('style-form');
+  const setText = (id, txt) => { const el = document.getElementById(id); if (el) el.textContent = txt; };
+  setText('style-radius-val',  `${s.borderRadius}px`);
+  setText('style-bw-val',      `${s.borderWidth}px`);
+  setText('style-pad-val',     `${s.padding}px`);
+  setText('style-surface-val', `${form.elements.surfaceAlpha.value}%`);
+  setText('style-border-val',  `${form.elements.borderAlpha.value}%`);
+  // Sync hex inputs ↔ color pickers
   if (form.elements.accentHex) form.elements.accentHex.value = s.accent;
   if (form.elements.textHex)   form.elements.textHex.value   = s.text;
 }
@@ -941,12 +972,16 @@ function openStyleEditor(style, scope) {
   editingStyleId    = style.id;
   editingStyleScope = scope;
   const form = document.getElementById('style-form');
+  const surf = parseColorValue(style.surface);
+  const bord = parseColorValue(style.border);
   form.elements.name.value         = style.name;
   form.elements.font.value         = style.font || 'system-ui';
   form.elements.accent.value       = style.accent;
   form.elements.text.value         = style.text;
-  form.elements.surface.value      = style.surface;
-  form.elements.border.value       = style.border;
+  form.elements.surfaceColor.value = surf.hex;
+  form.elements.surfaceAlpha.value = Math.round(surf.alpha * 100);
+  form.elements.borderColor.value  = bord.hex;
+  form.elements.borderAlpha.value  = Math.round(bord.alpha * 100);
   form.elements.borderRadius.value = style.borderRadius;
   form.elements.borderWidth.value  = style.borderWidth;
   form.elements.padding.value      = style.padding;
