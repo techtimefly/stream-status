@@ -23,5 +23,5 @@ if [ -f .env ]; then
     set -a && source .env && set +a
 fi
 
-echo "Starting Stream Status on http://$BIND"
+echo "Starting Maestro on http://$BIND"
 exec "$VENV/bin/gunicorn" --workers "$WORKERS" --bind "$BIND" app:app

@@ -1,8 +1,10 @@
-# Stream Status
+# Maestro
 
-A self-hosted homelab app for managing live-stream segments, tasks, and notes, with OBS browser-source overlays and a full OBS WebSocket integration.
+A self-hosted homelab app for managing live-stream segments, tasks, and notes, with OBS browser-source overlays and a full OBS WebSocket integration. Maestro is your show-running console — prep the rundown, then conduct the stream live.
 
 Runs on any Linux server with Python 3.11+. Three ways to run it — pick whichever fits your setup.
+
+> **Note:** This project's directory, systemd unit, and on-disk paths are still named `stream-status` (its original name). Renaming filesystem paths is risky on a live deploy and not necessary — only the user-facing brand changed.
 
 ---
 

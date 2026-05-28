@@ -400,7 +400,7 @@ function renderHero() {
   }
   document.getElementById('project-focus').textContent       = project.focus    || '–';
   document.getElementById('project-platform').textContent    = project.platform || '–';
-  document.title = `${project.name} — Stream Status`;
+  document.title = `${project.name} — Maestro`;
 }
 
 /* ── Segments ────────────────────────────────────────────────────── */
