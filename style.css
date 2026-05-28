@@ -632,6 +632,14 @@ body[data-view="setup"] #view-setup { display: block; }
   letter-spacing: 0;
   font-weight: 400;
 }
+
+/* Force dark option list across the app — the OS default renders
+   <option> with a light theme on most platforms, ignoring our color. */
+select option,
+select optgroup {
+  background: #14181f;
+  color: var(--text);
+}
 .style-color-row { display: flex; align-items: center; gap: 8px; }
 .style-color-row input[type="color"] {
   width: 38px;
