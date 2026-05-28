@@ -633,6 +633,31 @@ body[data-view="setup"] #view-setup { display: block; }
   font-weight: 400;
 }
 
+/* Social input rows in Edit Project modal */
+.social-input-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+}
+.social-input-row input { flex: 1; min-width: 0; }
+.social-input-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+.social-input-icon svg { width: 100%; height: 100%; }
+.social-input-row[data-platform="twitch"]  .social-input-icon { color: #9146ff; }
+.social-input-row[data-platform="youtube"] .social-input-icon { color: #ff0000; }
+.social-input-row[data-platform="github"]  .social-input-icon { color: var(--text); }
+.social-input-row[data-platform="discord"] .social-input-icon { color: #5865f2; }
+.social-input-row[data-platform="twitter"] .social-input-icon { color: var(--text); }
+.social-input-row[data-platform="website"] .social-input-icon { color: var(--accent); }
+
 /* Force dark option list across the app — the OS default renders
    <option> with a light theme on most platforms, ignoring our color. */
 select option,

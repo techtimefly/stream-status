@@ -157,16 +157,17 @@ body.size-lg    { font-size: 19px; }
   margin-bottom: 2px;
 }
 .social-list { display: flex; flex-direction: column; gap: 8px; }
-.social-item { display: flex; align-items: baseline; gap: 10px; }
-.social-label {
-  font-size: 0.72em;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
-  color: #64748b;
-  width: 56px;
+.social-item { display: flex; align-items: center; gap: 10px; }
+.social-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  color: var(--ov-accent);
   flex-shrink: 0;
 }
+.social-icon svg { width: 100%; height: 100%; }
 .social-handle {
   font-size: 0.95em;
   color: var(--ov-text);

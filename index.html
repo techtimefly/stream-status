@@ -48,12 +48,30 @@
         <input name="platform" type="text" placeholder="Platform / stack" />
         <div class="form-divider"></div>
         <p class="form-section-label">Social &amp; links</p>
-        <input name="social_twitch"  type="text" placeholder="Twitch handle" />
-        <input name="social_youtube" type="text" placeholder="YouTube channel" />
-        <input name="social_github"  type="text" placeholder="GitHub username" />
-        <input name="social_discord" type="text" placeholder="Discord server" />
-        <input name="social_twitter" type="text" placeholder="X / Twitter handle" />
-        <input name="social_website" type="text" placeholder="Website URL" />
+        <div class="social-input-row" data-platform="twitch">
+          <span class="social-input-icon"></span>
+          <input name="social_twitch"  type="text" placeholder="Twitch handle" />
+        </div>
+        <div class="social-input-row" data-platform="youtube">
+          <span class="social-input-icon"></span>
+          <input name="social_youtube" type="text" placeholder="YouTube channel" />
+        </div>
+        <div class="social-input-row" data-platform="github">
+          <span class="social-input-icon"></span>
+          <input name="social_github"  type="text" placeholder="GitHub username" />
+        </div>
+        <div class="social-input-row" data-platform="discord">
+          <span class="social-input-icon"></span>
+          <input name="social_discord" type="text" placeholder="Discord server" />
+        </div>
+        <div class="social-input-row" data-platform="twitter">
+          <span class="social-input-icon"></span>
+          <input name="social_twitter" type="text" placeholder="X / Twitter handle" />
+        </div>
+        <div class="social-input-row" data-platform="website">
+          <span class="social-input-icon"></span>
+          <input name="social_website" type="text" placeholder="Website URL" />
+        </div>
         <button type="submit" class="btn-primary">Save</button>
       </form>
     </div>
