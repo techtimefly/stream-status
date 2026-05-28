@@ -173,17 +173,20 @@ make logs      # follow systemd service logs
   .env                      Optional: AI provider config (see AI features)
 
 /var/www/stream-status/
-  index.html                Main app shell
+  index.html                Main app shell (Plan / Live / Setup tabs)
   style.css                 Main app styles
-  script.js                 Main app logic
+  script.js                 Main app logic + Router + Style system
+  layout-builder.js         Layout builder editor & inspector
   obs-websocket.js          obs-websocket-js v5 UMD bundle (self-hosted)
   overlay.html              OBS overlay shell (minimal)
-  overlay.css               Overlay widget styles
-  overlay.js                Overlay logic & view functions
+  overlay.css               Overlay widget styles (CSS custom-property driven)
+  overlay.js                Overlay logic, view functions, style resolution
 
 /var/lib/stream-status/
   projects/<uuid>.json      One file per project (persistent)
   active.json               Pointer to the currently active project
+  global-layouts.json       Cross-project layouts (created on first save)
+  global-styles.json        Cross-project styles (created on first save)
 
 /etc/systemd/system/
   stream-status-api.service Gunicorn service unit
@@ -242,6 +245,16 @@ Base URL: `http://<SERVER_IP>/api`
 | `POST` | `/generate-segments` | Generate a 5–7 segment plan for a project |
 | `POST` | `/suggest-tasks` | Suggest 5–6 tasks for a specific segment |
 | `POST` | `/generate-writeup` | Generate a YouTube-style stream description |
+| `GET` | `/layouts` | List global layouts (cross-project) |
+| `POST` | `/layouts` | Create or upsert a global layout — body must include `id` |
+| `GET` | `/layouts/:id` | Get a single global layout |
+| `PUT` | `/layouts/:id` | Update a global layout |
+| `DELETE` | `/layouts/:id` | Delete a global layout, returns 204 |
+| `GET` | `/styles` | List global styles |
+| `POST` | `/styles` | Create or upsert a global style — body must include `id` |
+| `GET` | `/styles/:id` | Get a single global style |
+| `PUT` | `/styles/:id` | Update a global style |
+| `DELETE` | `/styles/:id` | Delete a global style, returns 204 |
 
 `PUT` is a full replace — the frontend always sends the entire project object. `createdAt` is preserved server-side; `updatedAt` is stamped on every write.
 
@@ -286,6 +299,17 @@ All AI endpoints return `503` if no provider is configured, `400` if required fi
     "twitter": "yourhandle",
     "website": "https://example.com"
   },
+
+  // Stream style (optional — defaults to Minimal preset look if absent)
+  "activeStyleId": "preset-synthwave",         // preset id, global-<n>, or style-<n>
+  "styles": [                                  // project-scoped style library
+    { "id": "style-1716700000000", "name": "My custom",
+      "font": "Inter", "accent": "#60a5fa", "text": "#ffffff",
+      "surface": "rgba(0,0,0,0.7)", "border": "rgba(255,255,255,0.1)",
+      "borderRadius": 12, "borderWidth": 1, "padding": 16,
+      "glow": true, "shadow": false }
+  ],
+
   "segments": [
     {
       "key": "1716652800000",   // Date.now() string — stable ID
@@ -313,6 +337,26 @@ All AI endpoints return `503` if no provider is configured, `400` if required fi
   "updatedAt": "2026-05-25T18:30:00Z"
 }
 ```
+
+---
+
+## Tabs and routing
+
+The app is organized into three workflow-aligned tabs, each backed by a real URL so they're bookmarkable and survive browser back/forward.
+
+| Route | Tab | Purpose |
+|---|---|---|
+| `/p/<uuid>/plan`  | **Plan**  | Pre-stream prep — project hero, segments, tasks, notes, countdown |
+| `/p/<uuid>/live`  | **Live**  | Operator control surface — large timer, current/next segment, OBS scene picker, BRB indicator, highlight (★), open-task counter, OBS stream health |
+| `/p/<uuid>/setup` | **Setup** | Project details, OBS connection, Stream style, overlay sources, layout builder, reset-progress |
+
+Hitting `/` redirects to the last-used project's Plan view. Direct navigation to any route works (nginx falls back to `index.html` for unmatched paths). Switching tabs is instant — all three views are in the DOM and CSS-toggled by `body[data-view="X"]`.
+
+A slim **live strip** at the top of Plan/Setup shows the current segment, timer and open-task count whenever the stream is live; it's hidden on the Live tab (which already shows everything at full size).
+
+### Reset progress
+
+The Setup tab has a **Reset progress** button (in the Project details panel) that clears all `done`/`completed` flags, the live timer (`liveStartedAt`, `streamStartedAt`, `obsTimerPausedDuration`, `obsBrbPausedAt`) and the `highlights` log. Segments, tasks, notes, social, OBS settings, and the project metadata are preserved. Intended for dry-run testing without re-creating the project.
 
 ---
 
@@ -378,16 +422,16 @@ When OBS is connected, **Go Live** and **End Stream** are also triggered automat
 ### Countdown
 Set a target date/time and an optional label (e.g. "Back in", "Next stream"). Displays remaining time; shows "Time's up!" when expired. Cleared with the ✕ button.
 
-### Sticky now-live bar
-A slim bar fixed to the top of the viewport that slides into view when you scroll past the hero. Shows the current segment name, live elapsed timer, and open task count — always accessible without scrolling back up.
+### Live strip
+A slim bar at the top of the Plan and Setup tabs shows the current segment name, live elapsed timer, and open task count — visible whenever a stream is live, hidden on the Live tab (which already displays everything at full size).
 
 ### Navigation
 
-A sticky pill bar sits above the main content and links to the four main sections: **Segments**, **Tasks**, **Notes**, **Overlays**. It highlights the active section as you scroll using IntersectionObserver.
+A pill-style tab nav in the global header switches between **Plan**, **Live**, and **Setup**. Tab clicks push real URLs (`/p/<id>/<view>`), so browser back/forward works and the Live tab is bookmarkable on a second monitor. See **Tabs and routing** above for details.
 
-### Themes
+### Themes (app chrome)
 
-Five accent color presets are available via the dot picker in the top-right of the hero area. The choice is saved to `localStorage` and applied before the first paint.
+Five accent color presets are available via the dot picker in the global header. The choice is saved to `localStorage` and applied before the first paint. **This only affects the app UI** — see **Stream styles** for what viewers see in the overlays.
 
 | Theme | Accent |
 |---|---|
@@ -401,7 +445,7 @@ Five accent color presets are available via the dot picker in the top-right of t
 Free-form textarea, auto-saved 800 ms after you stop typing.
 
 ### Social links
-Set per-project via **Edit Project**: Twitch, YouTube, GitHub, Discord, X/Twitter, Website. Used by the Social overlay.
+Set per-project via **Edit Project**: Twitch, YouTube, GitHub, Discord, X/Twitter, Website. Each field is prefixed with the platform's brand icon (inline SVG, no CDN). The `view=social` overlay renders the same icons in place of text labels; icon color follows the active stream style's accent.
 
 ---
 
@@ -557,6 +601,7 @@ Each overlay card in the app has inline controls that update the URL in real tim
 | `bg` | `transparent` | `green` or `magenta` for chroma key |
 | `size` | `md` | Font size: `sm`, `md`, `lg` |
 | `poll` | `5` | API refresh interval in seconds (min 3) |
+| `style` | (none) | Style id to apply — a preset slug, a global style id, or a project-scoped style id. Overrides `project.activeStyleId`. See **Stream styles** below. |
 
 ---
 
@@ -619,6 +664,53 @@ Example — tip visible for 6 s, dark for 9 s, pure fade, 15 s cycle:
 ```
 
 Recommended OBS size: **620 × auto**
+
+---
+
+## Stream styles
+
+Overlays read their look (font, accent color, surface, border, padding, glow, text shadow) from a small style object. Three tiers, lowest → highest precedence:
+
+| Tier | Where it lives | When it applies |
+|---|---|---|
+| **Default** | Built-in CSS values in `overlay.css` (= Minimal preset) | Always, unless overridden |
+| **Project active** | `project.activeStyleId` | When `?project=<id>` is in the overlay URL |
+| **Explicit** | `?style=<id>` query param | Beats project active for that URL |
+| **Per-widget** | `widget.params.styleId` inside a layout-builder layout | Beats everything for that one widget |
+
+Manage styles in the **Setup tab → Stream style** panel: pick from the **Active style** dropdown (Presets / Global / Project sections), click **Edit active** to open the editor, or **+ New style** to create a project-scoped one.
+
+### Preset styles (shipped)
+
+| Slug | Look |
+|---|---|
+| `preset-minimal`   | Current default — neutral surface, blue accent, system font |
+| `preset-broadcast` | Solid dark, bold blue, Inter, drop-shadow text |
+| `preset-synthwave` | Translucent black, pink accent, Space Grotesk, accent glow |
+| `preset-newsroom`  | Sharp corners, red accent, Roboto Slab, shadow text |
+| `preset-terminal`  | Mono, green-on-black, JetBrains Mono, hairline border |
+
+Presets are read-only — use the **Save as global** button in the editor to clone one into a global style you can edit. Google Fonts referenced by a style are lazily injected as a single `<link>` per font when the overlay first loads.
+
+### Style editor
+
+Open via Setup → **Edit active**. Two-column layout:
+
+- **Form (left)**: name, font dropdown, accent + text color pickers (with paired hex inputs), surface and border (color swatch + 0–100% opacity slider — slide opacity to 0 for transparent), border-radius / border-width / padding sliders, glow and text-shadow toggles.
+- **Live preview (right)**: a mini "current segment" card rendered with the style applied; updates on every input change.
+
+The form `Save` button writes back to wherever the style lives — project-scoped styles save into `project.styles[]`, global styles save through `/api/styles`. **Save as global** clones the current form data into a new global style. Live overlays update on their next poll cycle.
+
+### Style scoping options chosen
+
+- **Universal overlay URLs** (`?view=X` with no `project=`) ignore project styles. To style them, pass `?style=<id>` explicitly.
+- **Project-scoped overlays** (`?project=<uuid>&view=X`) inherit `project.activeStyleId` by default.
+
+### Per-widget styles (layout builder)
+
+In the layout builder, each widget instance has an optional **Style** field in its inspector. When set, that widget renders with the chosen style regardless of the layout's project-level style. The editor header also has an **Apply style to all…** dropdown that bulk-sets every widget in the layout to the chosen style (or clears overrides).
+
+Useful for mixed looks — e.g. a `preset-synthwave` timer alongside a `preset-minimal` task list in the same layout.
 
 ---
 
